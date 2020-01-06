@@ -15,7 +15,7 @@ void yyerror(const char*);
 %}
 
 %union {
-    int numeric;
+    char charType;
     char* strType;
     exp_t exp;
     type_t type;
@@ -56,17 +56,17 @@ void yyerror(const char*);
 %token <dummy> INT
 %token <dummy> BYTE
 %token <dummy> BOOL
-%token <numeric> NUM
+%token <strType> NUM
 %token <dummy> STRING
 %token <dummy> TRUE
 %token <dummy> FALSE
 %right <dummy> ASSIGN
 %left <dummy> OR
 %left <dummy> AND
-%left <dummy> EQUALITY
-%nonassoc <dummy> RELATIONAL
-%left <dummy> ADDITIVE
-%left <dummy> MUL
+%left <charType> EQUALITY
+%nonassoc <charType> RELATIONAL
+%left <charType> ADDITIVE
+%left <charType> MUL
 %right <dummy> CAST
 %right <dummy> NOT
 %left <dummy> PARENS
@@ -310,6 +310,14 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
+                        string varName1 = $1.varName;
+                        string varName2 = $3.varName;
+                        if($$.type == "INT"){
+                            varName1 = ConvertIfByte($1.type, $1.varName);
+                            varName2 = ConvertIfByte($3.type, $3.varName);
+                        }
+
+
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -332,10 +340,13 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     }|
                     NUM {
                         $$.type = new string("INT");
+                        $$.varName = CreateInitialIntegerVar($1);
                     }|
                     NUM B {
                         CheckNumValidity($1);
                         $$.type = new string("BYTE");
+                        $$.varName = CreateInitialByteVar($1);
+
                     }|
                     STRING {
                         $$.type = new string("STRING");

@@ -331,3 +331,81 @@ void isExplicitCastAllowed(string& castToType, string& castFromType){
     }
 }
 
+string FreshVar(){
+    return "%var" + __COUNTER__;
+}
+
+
+string CreateInitialIntegerVar(string value){
+    string action;
+    string varName = FreshVar();
+    action = varName + "= add i32 0, " + value;
+    CodeBuffer::instance().emit(action);
+    return varName;
+}
+
+string CreateInitialByteVar(string value){
+    string action;
+    string varName = FreshVar();
+    action = varName + "= add i8 0, " + value;
+    CodeBuffer::instance().emit(action);
+    return varName;
+}
+
+
+string ConvertIfByte(string type, string arg){
+    if(type == "BYTE"){
+        string varName = FreshVar();
+        string action = varName + " = zext i8 " + arg + " to i32";
+        CodeBuffer::instance().emit(action);
+        return varName;
+    }
+    return arg;
+}
+
+string DoArithmeticAction(string arg1, string arg2, char op, string retType){
+    string action;
+    string varName = FreshVar();
+    action = varName + " = ";
+    string actionType;
+    if(retType == "BYTE"){
+        actionType = "i8";
+    }
+    else {
+        actionType = "i32";
+    }
+
+    switch(op){
+        case '+':
+            action += "add " + actionType + " " + arg1 + " , " + arg2;
+            break;
+        case '-':
+            action += "sub " + actionType + " " + arg1 + " , " + arg2;
+            break;
+        case '*':
+            action += "mul " + actionType + " " + arg1 + " , " + arg2;
+            break;
+        case '/':
+            string divCheck;
+            string condVar = FreshVar();
+            divCheck = condVar + " = icmp eq " + actionType + " 0, " + arg2;
+            CodeBuffer::instance().emit(divCheck);
+            divCheck = "br i1 " + condVar + ", label @, label @";
+            int condBrToPatch = CodeBuffer::instance().emit(divCheck);
+            string isZero = CodeBuffer::instance().genLabel();
+            CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, FIRST)), isZero);
+            // divCheck = "call void @print()";
+            // TODO - call print with "Error division by zero" (convert to an array of i8 and send it to the func)
+            CodeBuffer::instance().emit(divCheck);
+            // TODO - find the statement of halt
+            CodeBuffer::instance().emit(divCheck);
+            string isNotZero = CodeBuffer::instance().genLabel();
+            CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, SECOND)), isNotZero);
+            action += "sdiv " + actionType + " " + arg1 + " , " + arg2;
+            break;
+        default:
+            break;
+    }
+    CodeBuffer::instance().emit(action);
+}
+

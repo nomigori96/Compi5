@@ -10,6 +10,7 @@ using namespace std;
 
 struct exp_t{
     string* type;
+    string* varName;
 };
 
 struct type_t{

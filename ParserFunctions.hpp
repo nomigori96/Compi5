@@ -7,6 +7,8 @@
 #include <algorithm>
 #include "symbol_table.hpp"
 #include "hw3_output.hpp"
+#include "bp.hpp"
+
 
 using namespace output;
 
@@ -78,6 +80,17 @@ void CheckNumValidity(int byteNum);
 string DetermineBinopReturnType(string& first, string& second);
 
 void isExplicitCastAllowed(string& castToType, string& castFromType);
+
+
+string FreshVar();
+
+string CreateInitialIntegerVar(string value);
+
+string CreateInitialByteVar(string value);
+
+string ConvertIfByte(string type, string arg);
+
+string DoArithmeticAction(string arg1, string arg2, char op);
 
 
 
