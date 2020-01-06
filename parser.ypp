@@ -1,0 +1,407 @@
+%{
+#include "hw3_output.hpp"
+#include "Semantic_types.hpp"
+#include "ParserFunctions.hpp"
+#include <string>
+
+using namespace std;
+
+extern int yylineno;
+
+int yylex();
+void yyerror(const char*);
+
+
+%}
+
+%union {
+    int numeric;
+    char* strType;
+    exp_t exp;
+    type_t type;
+    enumType_t enumType;
+    call_t call;
+    expList_t expList;
+    dummy_t dummy;
+    formals_t formals;
+    formalList_t formalsList;
+    formalDecl_t formalDecl;
+    retType_t retType;
+    enumeratorList_t enumeratorList;
+	enumerator_t enumerator;
+    funcIdDecl_t funcIdDecl;
+    enumIdDecl_t enumIdDecl;
+
+};
+
+%nonassoc <dummy> IFWITHOUTELSE
+%nonassoc <dummy> IFWITHELSE
+
+%token <dummy> B
+%token <strType> ID
+%token <dummy> LPAREN
+%nonassoc <dummy> RPAREN
+%token <dummy> LBRACE
+%token <dummy> RBRACE
+%token <dummy> ENUM
+%token <dummy> SC
+%token <dummy> VOID
+%token <dummy> COMMA
+%token <dummy> RETURN
+%token <dummy> BREAK
+%token <dummy> IF
+%token <dummy> CONTINUE
+%nonassoc <dummy> ELSE
+%token <dummy> WHILE
+%token <dummy> INT
+%token <dummy> BYTE
+%token <dummy> BOOL
+%token <numeric> NUM
+%token <dummy> STRING
+%token <dummy> TRUE
+%token <dummy> FALSE
+%right <dummy> ASSIGN
+%left <dummy> OR
+%left <dummy> AND
+%left <dummy> EQUALITY
+%nonassoc <dummy> RELATIONAL
+%left <dummy> ADDITIVE
+%left <dummy> MUL
+%right <dummy> CAST
+%right <dummy> NOT
+%left <dummy> PARENS
+
+%type <dummy> Program
+%type <dummy> Funcs
+%type <dummy> FuncDecl
+%type <dummy> Enums
+%type <dummy> EnumDecl
+%type <retType> RetType
+%type <formals> Formals
+%type <formalsList> FormalsList
+%type <formalDecl> FormalDecl
+%type <enumeratorList> EnumeratorList
+%type <enumerator> Enumerator
+%type <dummy> Statements
+%type <dummy> Statement
+%type <call> Call
+%type <expList> ExpList
+%type <type> Type
+%type <enumType> EnumType
+%type <exp> Exp
+%type <dummy> FuncDeclHeader
+%type <dummy> OpenScope
+%type <dummy> CloseScopeAndOpen
+%type <dummy> IfHeader
+%type <dummy> WhileHeader
+%type <funcIdDecl> FuncIdDecl
+%type <enumIdDecl> EnumIdDecl
+
+%%
+
+Program:            Enums Funcs {};
+Funcs:              {}|
+                    FuncDecl Funcs ;
+FuncDecl:           FuncDeclHeader Statements RBRACE {
+                        CloseCurrentScope();
+                    };
+FuncIdDecl:         RetType ID {
+						string id($2);
+                        AddFunctionSymbolIfNotExists(id, *($1.type));
+                        UpdateCurrFunctionRetType(*($1.type));
+                        $$.funcId = new string($2);
+						delete $1.type;
+                    };
+FuncDeclHeader:     FuncIdDecl LPAREN Formals RPAREN LBRACE {
+                        UpdateFunctionSymbolArgs(*($3.args), *($1.funcId));
+                        OpenNewScope();
+                        AddFuncArgsToSymbolTable(*($3.args));
+						delete $3.args;
+                        delete $1.funcId;
+                    };
+OpenScope:          {
+                        OpenNewScope();
+                    };
+CloseScopeAndOpen:  {
+                        CloseCurrentScope();
+						OpenNewScope();
+                    };
+Enums:              {}|
+                    EnumDecl Enums ;
+EnumIdDecl:         ENUM ID LBRACE {
+						string id($2);
+                        AddEnumSymbolIfNotExists(id);
+                        $$.enumId = new string($2);
+                    };
+EnumDecl:           EnumIdDecl EnumeratorList RBRACE SC {
+                        UpdateEnumSymbolValues(*($2.values), *($1.enumId));
+                        delete $2.values;
+						delete $1.enumId;
+                    };
+RetType:            Type {$$.type = $1.type;}|
+                    VOID {$$.type = new string("VOID");};
+Formals:            {
+                        $$.args = new vector<tuple<string, string, bool>>();
+                    }|
+                    FormalsList {
+                        $$.args = $1.args;
+                    };
+FormalsList:        FormalDecl {
+                        $$.args = new vector<tuple<string,string, bool>>();
+                        tuple<string,string, bool> argToAdd(*($1.type),
+                                                            *($1.argName),
+                                                            $1.isEnumType);
+                        $$.args->push_back(argToAdd);
+                        delete $1.type;
+                        delete $1.argName;
+                    }|
+                    FormalDecl COMMA FormalsList {
+                        $$.args = $3.args;
+                        CheckNoDuplicatesFormalList(*($3.args), *($1.argName));
+                        tuple<string,string, bool> argToAdd(*($1.type),
+                                                            *($1.argName),
+                                                            $1.isEnumType);
+                        $$.args->insert($$.args->begin(), argToAdd);
+                        delete $1.type;
+                        delete $1.argName;
+                    };
+FormalDecl:         Type ID {
+						string id($2);
+                        CheckIfIdIsShadowing(id);
+                        $$.type = $1.type;
+                        $$.argName = new string($2);
+                        $$.isEnumType = false;
+                    }|
+                    EnumType ID {
+						string id($2);
+                        CheckIfIdIsShadowing(id);
+                        $$.type = new string(*($1.typeName));
+                        $$.argName = new string($2);
+                        $$.isEnumType = true;
+                        delete $1.typeName;
+                    };
+EnumeratorList:     Enumerator {
+                        $$.values = new vector<string>();
+                        $$.values->push_back(*($1.value));
+                        delete $1.value;
+                    }|
+                    EnumeratorList COMMA Enumerator {
+                        $$.values = $1.values;
+                        CheckNoDuplicatesEnumList(*($1.values), *($3.value));
+                        $$.values->push_back(*($3.value));
+                        delete $3.value;
+                    };
+Enumerator:         ID {
+						string id($1);
+                        CheckIfIdIsShadowing(id);
+                        $$.value = new string($1);
+                    };
+Statements:         Statement |
+                    Statements Statement ;
+Statement:          LBRACE OpenScope Statements RBRACE {
+                        CloseCurrentScope();
+                    }|
+                    Type ID SC {
+						string id($2);
+                        AddVariableSymbolIfNotExists(id, *($1.type), false);
+                        delete $1.type;
+                    }|
+                    EnumType ID SC {
+						string id($2);
+                        AddVariableSymbolIfNotExists(id, *($1.typeName), true);
+                        delete $1.typeName;
+                    }|
+                    EnumDecl |
+                    Type ID ASSIGN Exp SC {
+						string id($2);
+                        AddVariableSymbolIfNotExists(id, *($1.type), false);
+                        CheckIfAssignmentAllowed(*($1.type), *($4.type));
+                        delete $1.type;
+                        delete $4.type;
+                    }|
+                    EnumType ID ASSIGN Exp SC {
+						string id($2);
+                        CheckIfAssignmentAllowedEnum(*($1.typeName), *($4.type), id);
+                        AddVariableSymbolIfNotExists(id, *($1.typeName), false);
+                        delete $1.typeName;
+                        delete $4.type;
+                    }|
+                    ID ASSIGN Exp SC {
+						string id($1);
+                        HandleAssignmentForExistingVar(id, *($3.type));
+                        delete $3.type;
+                    }|
+                    Call SC {
+                        delete $1.type;
+                    }|
+                    RETURN SC {
+						string void_str("VOID");
+                        CheckReturnValid(void_str);
+                    }|
+                    RETURN Exp SC {
+                        CheckReturnValid(*($2.type));
+						CheckFuncRetValNotVoid();
+                        delete $2.type;
+                    }|
+                    IfHeader Statement %prec IFWITHOUTELSE{
+                        CloseCurrentScope();
+                    }|
+                    IfHeader Statement ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
+                        CloseCurrentScope();
+                    }|
+                    WhileHeader Statement {
+                        LeaveLoop();
+                        CloseCurrentScope();
+                    }|
+                    BREAK SC {
+                        CheckIfBreakInLoop();
+                    }|
+                    CONTINUE SC {
+                        CheckIfContinueInLoop();
+                    };
+IfHeader:           IF LPAREN Exp RPAREN {
+                        vector<string> expected(1, "BOOL");
+                        CheckTypesMatch(expected, *($3.type));
+                        OpenNewScope();
+						delete $3.type;
+                    };
+WhileHeader:        WHILE LPAREN Exp RPAREN {
+                        vector<string> expected(1, "BOOL");
+                        CheckTypesMatch(expected, *($3.type));
+                        EnterLoop();
+                        OpenNewScope();
+						delete $3.type;
+                    };
+Call:               ID LPAREN ExpList RPAREN {
+						string id($1);
+                        $$.type = new string(CheckFunction(id, *($3.types)));
+                        delete $3.types;
+                    }|
+                    ID LPAREN RPAREN {
+						string id($1);
+                        $$.type = new string(CheckFunction(id, vector<string>()));
+                    };
+ExpList:            Exp {
+                        $$.types = new vector<string>();
+                        $$.types->push_back(*($1.type));
+                        delete $1.type;
+                    }|
+                    Exp COMMA ExpList {
+                        $3.types->insert($3.types->begin(), *($1.type));
+                        $$.types = $3.types;
+                        delete $1.type;
+                    };
+Type:               INT {$$.type = new string("INT");}|
+                    BYTE {$$.type = new string("BYTE");}|
+                    BOOL {$$.type = new string("BOOL");};
+EnumType:           ENUM ID {
+                        string enumName($2);
+                        CheckIfEnumTypeIsDefined(enumName);
+                        string fullType = string("enum ") + string($2);
+                        $$.typeName = new string(fullType);
+                    };
+Exp:                LPAREN Exp RPAREN %prec PARENS {
+                        $$.type = $2.type;
+                    }|
+                    Exp ADDITIVE Exp {
+                        vector<string> expected;
+                        expected.push_back("INT");
+                        expected.push_back("BYTE");
+                        CheckTypesMatch(expected, *($1.type));
+                        CheckTypesMatch(expected, *($3.type));
+                        $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
+                        delete $1.type;
+                        delete $3.type;
+                    }|
+                    Exp MUL Exp {
+                        vector<string> expected;
+                        expected.push_back("INT");
+                        expected.push_back("BYTE");
+                        CheckTypesMatch(expected, *($1.type));
+                        CheckTypesMatch(expected, *($3.type));
+                        $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
+                        delete $1.type;
+                        delete $3.type;
+                    }|
+                    ID {
+						string id($1);
+                        $$.type = new string(GetExpressionTypeById(id));
+                    }|
+                    Call {
+                        $$.type = $1.type;
+                    }|
+                    NUM {
+                        $$.type = new string("INT");
+                    }|
+                    NUM B {
+                        CheckNumValidity($1);
+                        $$.type = new string("BYTE");
+                    }|
+                    STRING {
+                        $$.type = new string("STRING");
+                    }|
+                    TRUE {
+                        $$.type = new string("BOOL");
+                    }|
+                    FALSE {
+                        $$.type = new string("BOOL");
+                    }|
+                    NOT Exp {
+                        vector<string> expected(1, "BOOL");
+                        CheckTypesMatch(expected, *($2.type));
+                        $$.type = $2.type;
+                    }|
+                    Exp AND Exp {
+                        vector<string> expected(1, "BOOL");
+                        CheckTypesMatch(expected, *($1.type));
+                        CheckTypesMatch(expected, *($3.type));
+                        $$.type = $1.type;
+						delete $3.type;
+                    }|
+                    Exp OR Exp {
+                        vector<string> expected(1, "BOOL");
+                        CheckTypesMatch(expected, *($1.type));
+                        CheckTypesMatch(expected, *($3.type));
+                        $$.type = $1.type;
+						delete $3.type;
+                    }|
+                    Exp RELATIONAL Exp {
+                        vector<string> expected;
+                        expected.push_back("INT");
+                        expected.push_back("BYTE");
+                        CheckTypesMatch(expected, *($1.type));
+                        CheckTypesMatch(expected, *($3.type));
+                        $$.type = new string("BOOL");
+                        delete $1.type;
+                        delete $3.type;
+                    }|
+                    Exp EQUALITY Exp {
+                        vector<string> expected;
+                        expected.push_back("INT");
+                        expected.push_back("BYTE");
+                        CheckTypesMatch(expected, *($1.type));
+                        CheckTypesMatch(expected, *($3.type));
+                        $$.type = new string("BOOL");
+                        delete $1.type;
+                        delete $3.type;
+                    }|
+                    LPAREN Type RPAREN Exp %prec CAST {
+                        isExplicitCastAllowed(*($2.type), *($4.type));
+						$$.type = $2.type;
+						delete $4.type;
+                    };
+
+%%
+
+void yyerror(const char*){
+    errorSyn(yylineno);
+    exit(0);
+}
+
+int main(){
+    yyparse();
+	CheckMainExists();
+	//closing global scope
+    CloseCurrentScope();
+	return 0;
+}
