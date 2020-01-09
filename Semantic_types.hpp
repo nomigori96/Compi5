@@ -5,12 +5,15 @@
 #include <vector>
 #include <utility>
 #include <tuple>
+#include "bp.hpp"
 
 using namespace std;
 
 struct exp_t{
     string* type;
     string* varName;
+    vector<pair<int, BranchLabelIndex >>* trueList;
+    vector<pair<int, BranchLabelIndex >>* falseList;
 };
 
 struct type_t{
@@ -64,6 +67,10 @@ struct funcIdDecl_t{
 
 struct enumIdDecl_t{
     string* enumId;
+};
+
+struct markerM_t{
+    string* labelToJump;
 };
 
 

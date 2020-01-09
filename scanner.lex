@@ -43,13 +43,13 @@ comment (\/\/[^\r\n]*[\r|\n|\r\n]?)
 "{" return LBRACE;
 "}" return RBRACE;
 "=" return ASSIGN;
-{relational} {yylval.charType = yytext; return RELATIONAL;};
-{equality} {yylval.charType = yytext; return EQUALITY;};
+{relational} {yylval.strType = (char*)malloc(yyleng + 1); strcpy(yylval.strType, yytext); return RELATIONAL;};
+{equality} {yylval.strType = (char*)malloc(yyleng + 1); strcpy(yylval.strType, yytext); return EQUALITY;};
 {mul} {yylval.charType = yytext; return MUL;};
 {additive}  {yylval.charType = yytext; return ADDITIVE;};
 {letter}({letter}|{digit})* {yylval.strType = (char*)malloc(yyleng + 1); strcpy(yylval.strType, yytext); return ID;}
 0|[1-9]{digit}* {yylval.strType = (char*)malloc(yyleng + 1); strcpy(yylval.strType, yytext); return NUM;};
-\"([^\n\r\"\\]|\\[rnt"\\])+\" return STRING;
+\"([^\n\r\"\\]|\\[rnt"\\])+\" {yylval.strType = (char*)malloc(yyleng + 1); strcpy(yylval.strType, yytext); return STRING;};
 {comment} ;
 {whitespace} ;
 . {errorLex(yylineno); exit(0);};

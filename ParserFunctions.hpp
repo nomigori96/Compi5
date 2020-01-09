@@ -84,13 +84,31 @@ void isExplicitCastAllowed(string& castToType, string& castFromType);
 
 string FreshVar();
 
+void DeclarePrintfAndExit();
+
+void DeclarePrinti();
+
+void DeclarePrint();
+
 string CreateInitialIntegerVar(string value);
 
 string CreateInitialByteVar(string value);
 
 string ConvertIfByte(string type, string arg);
 
-string DoArithmeticAction(string arg1, string arg2, char op);
+string DoArithmeticAction(string arg1, string arg2, char op, string retType);
+
+void CompareAction(string arg1, string arg2, string op, string retType, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList);
+
+vector<pair<int, BranchLabelIndex>> CreatePatchList();
+
+string GenLabel();
+
+void HandleOr(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int, BranchLabelIndex>>* &resFalseList, vector<pair<int, BranchLabelIndex>>* B1TrueList, vector<pair<int, BranchLabelIndex>>* B1FalseList,vector<pair<int, BranchLabelIndex>>* B2TrueList, vector<pair<int, BranchLabelIndex>>* B2FalseList, string beforeSecondLabel);
+
+void HandleAnd(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int, BranchLabelIndex>>* &resFalseList, vector<pair<int, BranchLabelIndex>>* B1TrueList, vector<pair<int, BranchLabelIndex>>* B1FalseList,vector<pair<int, BranchLabelIndex>>* B2TrueList, vector<pair<int, BranchLabelIndex>>* B2FalseList, string beforeSecondLabel);
+
+string WriteStringToBuffer(string str);
 
 
 

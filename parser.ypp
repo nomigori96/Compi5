@@ -31,6 +31,7 @@ void yyerror(const char*);
 	enumerator_t enumerator;
     funcIdDecl_t funcIdDecl;
     enumIdDecl_t enumIdDecl;
+    markerM_t markerM;
 
 };
 
@@ -57,14 +58,14 @@ void yyerror(const char*);
 %token <dummy> BYTE
 %token <dummy> BOOL
 %token <strType> NUM
-%token <dummy> STRING
+%token <strType> STRING
 %token <dummy> TRUE
 %token <dummy> FALSE
 %right <dummy> ASSIGN
 %left <dummy> OR
 %left <dummy> AND
-%left <charType> EQUALITY
-%nonassoc <charType> RELATIONAL
+%left <strType> EQUALITY
+%nonassoc <strType> RELATIONAL
 %left <charType> ADDITIVE
 %left <charType> MUL
 %right <dummy> CAST
@@ -96,6 +97,7 @@ void yyerror(const char*);
 %type <dummy> WhileHeader
 %type <funcIdDecl> FuncIdDecl
 %type <enumIdDecl> EnumIdDecl
+%type <markerM> M
 
 %%
 
@@ -300,8 +302,16 @@ EnumType:           ENUM ID {
                         string fullType = string("enum ") + string($2);
                         $$.typeName = new string(fullType);
                     };
+M:                  {
+                        $$.labelToJump = new string(GenLabel());
+                    }
 Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.type = $2.type;
+                        if ($2.type == "BOOL"){
+                            $$.trueList = $2.trueList;
+                            $$.falseList = $2.falseList;
+                        }
+                        $$.varName = $2.varName;
                     }|
                     Exp ADDITIVE Exp {
                         vector<string> expected;
@@ -316,8 +326,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                             varName1 = ConvertIfByte($1.type, $1.varName);
                             varName2 = ConvertIfByte($3.type, $3.varName);
                         }
-
-
+                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, $$.type));
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -328,6 +337,13 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
+                        string varName1 = $1.varName;
+                        string varName2 = $3.varName;
+                        if($$.type == "INT"){
+                            varName1 = ConvertIfByte($1.type, $1.varName);
+                            varName2 = ConvertIfByte($3.type, $3.varName);
+                        }
+                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, $$.type));
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -350,31 +366,46 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     }|
                     STRING {
                         $$.type = new string("STRING");
+                        $$.varName = new string(WriteStringToBuffer(string($1)));
                     }|
                     TRUE {
                         $$.type = new string("BOOL");
+                        $$.trueList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+                        $$.falseList = new vector<pair<int, BranchLabelIndex>>();
                     }|
                     FALSE {
                         $$.type = new string("BOOL");
+                        $$.falseList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+                        $$.trueList = new vector<pair<int, BranchLabelIndex>>();
                     }|
                     NOT Exp {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($2.type));
                         $$.type = $2.type;
+                        $$.trueList = $2.falseList;
+                        $$.falseList = $2.trueList;
                     }|
-                    Exp AND Exp {
+                    Exp AND M Exp {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($1.type));
-                        CheckTypesMatch(expected, *($3.type));
+                        CheckTypesMatch(expected, *($4.type));
+                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        HandleAnd(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, $3.labelToJump)
+                        $$.trueList = trueList;
+                        $$.falseList = falseList;
                         $$.type = $1.type;
-						delete $3.type;
+						delete $4.type;
                     }|
-                    Exp OR Exp {
+                    Exp OR M Exp {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($1.type));
-                        CheckTypesMatch(expected, *($3.type));
+                        CheckTypesMatch(expected, *($4.type));
+                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        HandleOr(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, $3.labelToJump)
+                        $$.trueList = trueList;
+                        $$.falseList = falseList;
                         $$.type = $1.type;
-						delete $3.type;
+						delete $4.type;
                     }|
                     Exp RELATIONAL Exp {
                         vector<string> expected;
@@ -383,6 +414,17 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string("BOOL");
+                        string varName1 = $1.varName;
+                        string varName2 = $3.varName;
+                        string commonType = DetermineBinopReturnType(*($1.type), *($3.type));
+                        if(commonType == "INT"){
+                            varName1 = ConvertIfByte($1.type, $1.varName);
+                            varName2 = ConvertIfByte($3.type, $3.varName);
+                        }
+                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
+                        $$.trueList = trueList;
+                        $$.falseList = falseList;
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -393,6 +435,17 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string("BOOL");
+                        string varName1 = $1.varName;
+                        string varName2 = $3.varName;
+                        string commonType = DetermineBinopReturnType(*($1.type), *($3.type));
+                        if(commonType == "INT"){
+                            varName1 = ConvertIfByte($1.type, $1.varName);
+                            varName2 = ConvertIfByte($3.type, $3.varName);
+                        }
+                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
+                        $$.trueList = trueList;
+                        $$.falseList = falseList;
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -410,6 +463,9 @@ void yyerror(const char*){
 }
 
 int main(){
+    DeclarePrintfAndExit();
+    DeclarePrinti();
+    DeclarePrint();
     yyparse();
 	CheckMainExists();
 	//closing global scope

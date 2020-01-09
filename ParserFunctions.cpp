@@ -331,6 +331,28 @@ void isExplicitCastAllowed(string& castToType, string& castFromType){
     }
 }
 
+
+void DeclarePrintfAndExit(){
+    string printfDecl = "declare i32 @printf(i8*, ...)";
+    string exitDecl = "declare void @exit(i32)";
+    string globalDecl1 = "@.int_specifier = constant [4 x i8] c\"%d\\0A\\00\"";
+    string globalDecl2 = "@.str_specifier = constant [4 x i8] c\"%s\\0A\\00\"";
+    CodeBuffer::instance().emit(printfDecl);
+    CodeBuffer::instance().emit(exitDecl);
+    CodeBuffer::instance().emit(globalDecl1);
+    CodeBuffer::instance().emit(globalDecl2);
+}
+
+void DeclarePrinti(){
+    string printi = "define void @printi(i32) {call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.int_specifier, i32 0, i32 0), i32 %0)ret void}";
+    CodeBuffer::instance().emit(printi);
+}
+
+void DeclarePrint(){
+    string print = "define void @print(i8*) {call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @.str_specifier, i32 0, i32 0), i8* %0)ret void";
+    CodeBuffer::instance().emit(print);
+}
+
 string FreshVar(){
     return "%var" + __COUNTER__;
 }
@@ -363,6 +385,27 @@ string ConvertIfByte(string type, string arg){
     return arg;
 }
 
+string WriteStringToBuffer(string str){
+    int stringLength = str.length();
+    string stringArr = FreshVar();
+    string alloc = stringArr + " = alloca [" + to_string(stringLength + 1) + " * i8]";
+    CodeBuffer::instance().emit(alloc);
+    for (int i = 0; i < stringLength; i++){
+        string currVar = FreshVar();
+        string currentChar = currVar + " = getelementptr [" + to_string(stringLength + 1) + " * i8]," + "[" + to_string(stringLength + 1) + " * i8]* %stringArr, i8 0, i8 " + to_string(i);
+        string store = "store i8 " + string(1, str[i]) + ", i8* " + currVar;
+        CodeBuffer::instance().emit(currentChar);
+        CodeBuffer::instance().emit(store);
+    }
+    string lastVar = FreshVar();
+    string lastChar = lastVar + " = getelementptr [" + to_string(stringLength + 1) + " * i8]," + "[" + to_string(stringLength + 1) + " * i8]* %stringArr, i8 0, i8 " + to_string(stringLength);
+    string storeLastVar = "store i8 " + string(1, '\0') + ", i8* " + lastVar;
+    CodeBuffer::instance().emit(lastChar);
+    CodeBuffer::instance().emit(storeLastVar);
+    return stringArr;
+}
+
+
 string DoArithmeticAction(string arg1, string arg2, char op, string retType){
     string action;
     string varName = FreshVar();
@@ -394,10 +437,10 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             int condBrToPatch = CodeBuffer::instance().emit(divCheck);
             string isZero = CodeBuffer::instance().genLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, FIRST)), isZero);
-            // divCheck = "call void @print()";
-            // TODO - call print with "Error division by zero" (convert to an array of i8 and send it to the func)
+            string arrVar = WriteStringToBuffer("Error division by zero");
+            divCheck = "call void @print(" + arrVar + ")";
             CodeBuffer::instance().emit(divCheck);
-            // TODO - find the statement of halt
+            divCheck = "call void @exit(0)";
             CodeBuffer::instance().emit(divCheck);
             string isNotZero = CodeBuffer::instance().genLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, SECOND)), isNotZero);
@@ -407,5 +450,69 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             break;
     }
     CodeBuffer::instance().emit(action);
+    return varName;
+}
+
+
+void CompareAction(string arg1, string arg2, string op, string retType, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList){
+    string action;
+    string varName = FreshVar();
+    action = varName + " = icmp ";
+    string actionType;
+    if(retType == "BYTE"){
+        actionType = "i8";
+    }
+    else {
+        actionType = "i32";
+    }
+    if (op == "=="){
+        action += "eq " + actionType + " " + arg1 + " , " + arg2;
+    }
+    else if (op == "!="){
+        action += "ne " + actionType + " " + arg1 + " , " + arg2;
+    }
+    else if (op == "<="){
+        string cond = (actionType == "i8") ? "ule" : "sle";
+        action += cond + " " + actionType + " " + arg1 + " , " + arg2;
+    }
+    else if (op == ">="){
+        string cond = (actionType == "i8") ? "uge" : "sge";
+        action += cond + " " + actionType + " " + arg1 + " , " + arg2;
+    }
+    else if (op == "<"){
+        string cond = (actionType == "i8") ? "ult" : "slt";
+        action += cond + " " + actionType + " " + arg1 + " , " + arg2;
+    }
+    else if (op == ">"){
+        string cond = (actionType == "i8") ? "ugt" : "sgt";
+        action += cond + " " + actionType + " " + arg1 + " , " + arg2;
+    }
+    CodeBuffer::instance().emit(action);
+    string condBr = "br i1 " + varName + ", label @, label @";
+    int patchLocation = CodeBuffer::instance().emit(condBr);
+    trueList = new vector<pair<int, BranchLabelIndex>>(CodeBuffer::instance().makelist(pair<int, BranchLabelIndex >(patchLocation, FIRST)));
+    falseList = new vector<pair<int, BranchLabelIndex>>(CodeBuffer::instance().makelist(pair<int, BranchLabelIndex >(patchLocation, SECOND)));
+}
+
+vector<pair<int, BranchLabelIndex>> CreatePatchList(){
+    string action = "br label @";
+    int location = CodeBuffer::instance().emit(action);
+    return CodeBuffer::instance().makelist(pair<int, BranchLabelIndex>(location, FIRST));
+}
+
+string GenLabel(){
+    return CodeBuffer::instance().genLabel();
+}
+
+void HandleAnd(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int, BranchLabelIndex>>* &resFalseList, vector<pair<int, BranchLabelIndex>>* B1TrueList, vector<pair<int, BranchLabelIndex>>* B1FalseList,vector<pair<int, BranchLabelIndex>>* B2TrueList, vector<pair<int, BranchLabelIndex>>* B2FalseList, string beforeSecondLabel){
+    CodeBuffer::instance().bpatch(*B1TrueList, beforeSecondLabel);
+    resTrueList = B2TrueList;
+    resFalseList = new vector<pair<int, BranchLabelIndex>>(CodeBuffer::instance().merge(*B1FalseList, *B2FalseList));
+}
+
+void HandleOr(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int, BranchLabelIndex>>* &resFalseList, vector<pair<int, BranchLabelIndex>>* B1TrueList, vector<pair<int, BranchLabelIndex>>* B1FalseList,vector<pair<int, BranchLabelIndex>>* B2TrueList, vector<pair<int, BranchLabelIndex>>* B2FalseList, string beforeSecondLabel){
+    CodeBuffer::instance().bpatch(*B1FalseList, beforeSecondLabel);
+    resTrueList = new vector<pair<int, BranchLabelIndex>>(CodeBuffer::instance().merge(*B1TrueList, *B2TrueList));
+    resFalseList = B2FalseList;
 }
 
