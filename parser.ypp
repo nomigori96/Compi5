@@ -105,6 +105,7 @@ Program:            Enums Funcs {};
 Funcs:              {}|
                     FuncDecl Funcs ;
 FuncDecl:           FuncDeclHeader Statements RBRACE {
+                        CloseFuncDefinition();
                         CloseCurrentScope();
                     };
 FuncIdDecl:         RetType ID {
@@ -112,12 +113,14 @@ FuncIdDecl:         RetType ID {
                         AddFunctionSymbolIfNotExists(id, *($1.type));
                         UpdateCurrFunctionRetType(*($1.type));
                         $$.funcId = new string($2);
-						delete $1.type;
+						$$.retType = $1.type;
                     };
 FuncDeclHeader:     FuncIdDecl LPAREN Formals RPAREN LBRACE {
                         UpdateFunctionSymbolArgs(*($3.args), *($1.funcId));
                         OpenNewScope();
                         AddFuncArgsToSymbolTable(*($3.args));
+                        DefineFunc(*($1.funcId), *($1.retType), $3.args);
+                        AllocateLocalVars();
 						delete $3.args;
                         delete $1.funcId;
                     };
@@ -206,11 +209,13 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     Type ID SC {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.type), false);
+                        CreateNewVarDefaultValue();
                         delete $1.type;
                     }|
                     EnumType ID SC {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.typeName), true);
+                        CreateNewVarDefaultValue();
                         delete $1.typeName;
                     }|
                     EnumDecl |
@@ -218,6 +223,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.type), false);
                         CheckIfAssignmentAllowed(*($1.type), *($4.type));
+                        CreateNewVarGivenValue(*($1.type), *($4.varName));
                         delete $1.type;
                         delete $4.type;
                     }|
@@ -225,12 +231,14 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						string id($2);
                         CheckIfAssignmentAllowedEnum(*($1.typeName), *($4.type), id);
                         AddVariableSymbolIfNotExists(id, *($1.typeName), false);
+                        CreateNewVarGivenValue(*($1.type), *($4.varName));
                         delete $1.typeName;
                         delete $4.type;
                     }|
                     ID ASSIGN Exp SC {
 						string id($1);
                         HandleAssignmentForExistingVar(id, *($3.type));
+                        UpdateVar(*($3.type), *($3.varName), $1);
                         delete $3.type;
                     }|
                     Call SC {
@@ -350,6 +358,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     ID {
 						string id($1);
                         $$.type = new string(GetExpressionTypeById(id));
+                        $$.varName = new string(HandleExpId(id));
                     }|
                     Call {
                         $$.type = $1.type;
@@ -453,6 +462,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         isExplicitCastAllowed(*($2.type), *($4.type));
 						$$.type = $2.type;
 						delete $4.type;
+						//TODO - return here after handling the allocation of vars
                     };
 
 %%

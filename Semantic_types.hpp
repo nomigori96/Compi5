@@ -63,6 +63,7 @@ struct enumerator_t{
 
 struct funcIdDecl_t{
     string* funcId;
+    string* retType;
 };
 
 struct enumIdDecl_t{

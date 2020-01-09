@@ -108,7 +108,23 @@ void HandleOr(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int
 
 void HandleAnd(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int, BranchLabelIndex>>* &resFalseList, vector<pair<int, BranchLabelIndex>>* B1TrueList, vector<pair<int, BranchLabelIndex>>* B1FalseList,vector<pair<int, BranchLabelIndex>>* B2TrueList, vector<pair<int, BranchLabelIndex>>* B2FalseList, string beforeSecondLabel);
 
+string HandleExpId(string id);
+
 string WriteStringToBuffer(string str);
+
+string ConvertToLLVMType(string type);
+
+void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string, bool>>* args);
+
+void AllocateLocalVars();
+
+void CloseFuncDefinition();
+
+void CreateNewVarDefaultValue();
+
+void CreateNewVarGivenValue(string type, string toStore);
+
+void UpdateVar(string type, string toStore, string varId);
 
 
 

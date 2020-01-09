@@ -9,6 +9,10 @@ using namespace std;
 
 SymbolTable symbol_table;
 string curr_function_return_type = "";
+int local_stack_ptr = 0;
+string local_vars_ptr = "";
+string func_args_ptr = "";
+string curr_func_num_args = 0;
 
 stack<bool> while_stack = stack<bool>();
 
@@ -361,7 +365,7 @@ string FreshVar(){
 string CreateInitialIntegerVar(string value){
     string action;
     string varName = FreshVar();
-    action = varName + "= add i32 0, " + value;
+    action = varName + " = add i32 0, " + value;
     CodeBuffer::instance().emit(action);
     return varName;
 }
@@ -388,17 +392,17 @@ string ConvertIfByte(string type, string arg){
 string WriteStringToBuffer(string str){
     int stringLength = str.length();
     string stringArr = FreshVar();
-    string alloc = stringArr + " = alloca [" + to_string(stringLength + 1) + " * i8]";
+    string alloc = stringArr + " = alloca [" + to_string(stringLength + 1) + " x i8]";
     CodeBuffer::instance().emit(alloc);
     for (int i = 0; i < stringLength; i++){
         string currVar = FreshVar();
-        string currentChar = currVar + " = getelementptr [" + to_string(stringLength + 1) + " * i8]," + "[" + to_string(stringLength + 1) + " * i8]* %stringArr, i8 0, i8 " + to_string(i);
+        string currentChar = currVar + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 " + to_string(i);
         string store = "store i8 " + string(1, str[i]) + ", i8* " + currVar;
         CodeBuffer::instance().emit(currentChar);
         CodeBuffer::instance().emit(store);
     }
     string lastVar = FreshVar();
-    string lastChar = lastVar + " = getelementptr [" + to_string(stringLength + 1) + " * i8]," + "[" + to_string(stringLength + 1) + " * i8]* %stringArr, i8 0, i8 " + to_string(stringLength);
+    string lastChar = lastVar + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 " + to_string(stringLength);
     string storeLastVar = "store i8 " + string(1, '\0') + ", i8* " + lastVar;
     CodeBuffer::instance().emit(lastChar);
     CodeBuffer::instance().emit(storeLastVar);
@@ -516,3 +520,128 @@ void HandleOr(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int
     resFalseList = B2FalseList;
 }
 
+string HandleExpId(string id){
+    if (symbol_table.DoesSymbolExists(id) == SYMBOL){
+        SymbolTableRecord* wantedRecord = symbol_table.GetSymbolRecordById(id);
+        string recordType = wantedRecord->GetType();
+        int offset = wantedRecord->GetOffset();
+        string action;
+        string loadFrom = FreshVar();
+        if (offset < 0){
+            action = loadFrom + " = getelementptr [" + curr_func_num_args + " x i32], [" + curr_func_num_args + " x i32]* " + func_args_ptr + ", i32 0, i32 " + to_string(abs(offset));
+        }
+        else {
+            action = loadFrom + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(offset);
+        }
+        CodeBuffer::instance().emit(action);
+        string existingVarReg = FreshVar();
+        action = existingVarReg + " = load i32, i32* " + loadFrom;
+
+        return existingVarReg;
+    }
+    else {
+        //id is enum value
+        string enumType = symbol_table.FindEnumTypeByGivenValue(id);
+        SymbolTableRecord* enumTypeRecord = symbol_table.GetSymbolRecordById(enumType);
+        vector<string> enumValues = dynamic_cast<EnumSymbolTableRecord*>(enumTypeRecord)->GetEnumValues();
+        vector<string>::iterator itr = find(enumValues.begin(), enumValues.end(), id);
+        int enumValueNum = distance(enumValues.begin(), itr);
+        string enumValueVar = FreshVar();
+        string action = enumValueVar + " = add i32 0, " + to_string(enumValueNum);
+        CodeBuffer::instance().emit(action);
+        return  enumValueVar;
+    }
+}
+
+string ConvertToLLVMType(string type){
+    if (type == "BOOL"){
+        return "i1";
+    }
+    else if (type == "INT"){
+        return "i32";
+    }
+    else {
+        return "i8";
+    }
+}
+
+void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string, bool>>* args){
+    string funcDecl = "define " + funcRetType + " @" + funcName + "(";
+    for (auto arg : *args){
+        funcDecl += ConvertToLLVMType(get<0>(arg)) + ", ";
+    }
+    func_args_ptr = FreshVar();
+    curr_func_num_args = to_string(args->size());
+    funcDecl += "[" + curr_func_num_args + " x i32]* " + func_args_ptr;
+    funcDecl += ") {";
+    CodeBuffer::instance().emit(funcDecl);
+}
+
+void AllocateLocalVars(){
+    local_stack_ptr = 0;
+    local_vars_ptr = FreshVar();
+    string action = local_vars_ptr + " = alloca [50 x i32]";
+    CodeBuffer::instance().emit(action);
+}
+
+void CloseFuncDefinition(){
+    string action = "}";
+    CodeBuffer::instance().emit(action);
+}
+
+void CreateNewVarDefaultValue(){
+    string storeTo = FreshVar();
+    string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr);
+    CodeBuffer::instance().emit(action);
+    action = "store i32 0, i32* " + storeTo;
+    local_stack_ptr++;
+}
+
+void CreateNewVarGivenValue(string type, string toStore){
+    string storeTo = FreshVar();
+    string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr);
+    CodeBuffer::instance().emit(action);
+    string updatedToStore = FreshVar();
+    if (type == "INT" || type.find("enum") == 0){
+        action = updatedToStore + " = add i32 0, " + toStore;
+        CodeBuffer::instance().emit(action);
+    }
+    else if (type == "BOOL"){
+        action = updatedToStore + " = zext i1 " + toStore + " to i32";
+        CodeBuffer::instance().emit(action);
+    }
+    else {
+        action = updatedToStore + " = zext i8 " + toStore + " to i32";
+        CodeBuffer::instance().emit(action);
+    }
+    action = "store i32 " + updatedToStore + ", i32* " + storeTo;
+    local_stack_ptr++;
+}
+
+void UpdateVar(string type, string toStore, string varId){
+    SymbolTableRecord* varRecord = symbol_table.GetSymbolRecordById(varId);
+    int varStackOffset = varRecord->GetOffset();
+    string action;
+    string storeTo = FreshVar();
+    if (varStackOffset < 0){
+        action = storeTo + " = getelementptr [" + curr_func_num_args + " x i32], [" + curr_func_num_args + " x i32]* " + func_args_ptr + ", i32 0, i32 " + to_string(abs(varStackOffset));
+    }
+    else {
+        action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(varStackOffset);
+    }
+    CodeBuffer::instance().emit(action);
+    string updatedToStore = FreshVar();
+    if (type == "INT" || type.find("enum") == 0){
+        action = updatedToStore + " = add i32 0, " + toStore;
+        CodeBuffer::instance().emit(action);
+    }
+    else if (type == "BOOL"){
+        action = updatedToStore + " = zext i1 " + toStore + " to i32";
+        CodeBuffer::instance().emit(action);
+    }
+    else {
+        action = updatedToStore + " = zext i8 " + toStore + " to i32";
+        CodeBuffer::instance().emit(action);
+    }
+    action = "store i32 " + updatedToStore + ", i32* " + storeTo;
+}
