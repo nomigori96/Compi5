@@ -594,6 +594,7 @@ void CreateNewVarDefaultValue(){
     string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr);
     CodeBuffer::instance().emit(action);
     action = "store i32 0, i32* " + storeTo;
+    CodeBuffer::instance().emit(action);
     local_stack_ptr++;
 }
 
@@ -615,6 +616,7 @@ void CreateNewVarGivenValue(string type, string toStore){
         CodeBuffer::instance().emit(action);
     }
     action = "store i32 " + updatedToStore + ", i32* " + storeTo;
+    CodeBuffer::instance().emit(action);
     local_stack_ptr++;
 }
 
@@ -644,4 +646,5 @@ void UpdateVar(string type, string toStore, string varId){
         CodeBuffer::instance().emit(action);
     }
     action = "store i32 " + updatedToStore + ", i32* " + storeTo;
+    CodeBuffer::instance().emit(action);
 }

@@ -462,7 +462,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         isExplicitCastAllowed(*($2.type), *($4.type));
 						$$.type = $2.type;
 						delete $4.type;
-						//TODO - return here after handling the allocation of vars
+						$$.varName = $4.varName;
                     };
 
 %%
