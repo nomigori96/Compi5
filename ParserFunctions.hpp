@@ -138,5 +138,8 @@ string GetWhileExpLabel();
 
 string AllocateFuncArgs(int numArgs, vector<string> args);
 
+string CallFunction(string argsAllocationVar, string funcName, int numArgs);
+
+string CallFunctionNoArgs(string funcName);
 
 #endif //HW3_PARSERFUNCTIONNEW_HPP
