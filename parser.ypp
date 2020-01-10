@@ -32,7 +32,10 @@ void yyerror(const char*);
     funcIdDecl_t funcIdDecl;
     enumIdDecl_t enumIdDecl;
     markerM_t markerM;
-
+    statement_t statement;
+    ifHeader_t ifHeader;
+    markerN_t markerN;
+    whileHeader_t whileHeader;
 };
 
 %nonassoc <dummy> IFWITHOUTELSE
@@ -83,8 +86,8 @@ void yyerror(const char*);
 %type <formalDecl> FormalDecl
 %type <enumeratorList> EnumeratorList
 %type <enumerator> Enumerator
-%type <dummy> Statements
-%type <dummy> Statement
+%type <statement> Statements
+%type <statement> Statement
 %type <call> Call
 %type <expList> ExpList
 %type <type> Type
@@ -92,12 +95,13 @@ void yyerror(const char*);
 %type <exp> Exp
 %type <dummy> FuncDeclHeader
 %type <dummy> OpenScope
-%type <dummy> CloseScopeAndOpen
-%type <dummy> IfHeader
-%type <dummy> WhileHeader
+%type <markerM> CloseScopeAndOpen
+%type <ifHeader> IfHeader
+%type <whileHeader> WhileHeader
 %type <funcIdDecl> FuncIdDecl
 %type <enumIdDecl> EnumIdDecl
 %type <markerM> M
+%type <markerN> N
 
 %%
 
@@ -130,6 +134,7 @@ OpenScope:          {
 CloseScopeAndOpen:  {
                         CloseCurrentScope();
 						OpenNewScope();
+						$$.labelToJump = new string(GenLabel());
                     };
 Enums:              {}|
                     EnumDecl Enums ;
@@ -201,24 +206,68 @@ Enumerator:         ID {
                         CheckIfIdIsShadowing(id);
                         $$.value = new string($1);
                     };
-Statements:         Statement |
-                    Statements Statement ;
+Statements:         Statement {
+                        if ($1.isNextList){
+                            $$.nextList = $1.nextList;
+                        }
+                        $$.isNextList = $1.isNextList;
+                        if ($1.isBreakList){
+                            $$.breakList = $1.breakList;
+                        }
+                        $$.isBreakList = $1.isBreakList;
+                    } |
+                    Statements M Statement {
+                        if($1.isNextList){
+                            BPatchList(*($2.labelToJump), $1.nextList)
+                        }
+                        if($3.isNextList){
+                            $$.nextList = $3.nextList;
+                        }
+                        $$.isNextList = $3.isNextList;
+
+                        vector<pair<int, BranchLabelIndex>> mergedList;
+                        if($1.isBreakList){
+                            mergedList = MergePatchLists(*($1.breakList), mergedList);
+                        }
+                        if($3.isBreakList){
+                            mergedList = MergePatchLists(*($3.breakList), mergedList);
+                        }
+                        if($3.isBreakList || $1.isBreakList){
+                            $$.breakList = new vector<pair<int, BranchLabelIndex>>(mergedList);
+                        }
+                        $$.isBreakList = ($3.isBreakList || $1.isBreakList);
+                    };
 Statement:          LBRACE OpenScope Statements RBRACE {
                         CloseCurrentScope();
+                        if($3.isNextList){
+                            $$.nextList = $3.nextList;
+                        }
+                        $$.isNextList = $3.isNextList;
+                        if($3.isBreakList){
+                            $$.breakList = $3.breakList;
+                        }
+                        $$.isBreakList = $3.isBreakList;
                     }|
                     Type ID SC {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.type), false);
                         CreateNewVarDefaultValue();
                         delete $1.type;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     EnumType ID SC {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.typeName), true);
                         CreateNewVarDefaultValue();
                         delete $1.typeName;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
-                    EnumDecl |
+                    EnumDecl {
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
+                    }|
                     Type ID ASSIGN Exp SC {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.type), false);
@@ -226,6 +275,8 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         CreateNewVarGivenValue(*($1.type), *($4.varName));
                         delete $1.type;
                         delete $4.type;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     EnumType ID ASSIGN Exp SC {
 						string id($2);
@@ -234,53 +285,106 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         CreateNewVarGivenValue(*($1.type), *($4.varName));
                         delete $1.typeName;
                         delete $4.type;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     ID ASSIGN Exp SC {
 						string id($1);
                         HandleAssignmentForExistingVar(id, *($3.type));
                         UpdateVar(*($3.type), *($3.varName), $1);
                         delete $3.type;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     Call SC {
                         delete $1.type;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     RETURN SC {
 						string void_str("VOID");
                         CheckReturnValid(void_str);
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     RETURN Exp SC {
                         CheckReturnValid(*($2.type));
 						CheckFuncRetValNotVoid();
                         delete $2.type;
+                        $$.isNextList = false;
+                        $$.isBreakList = false;
                     }|
                     IfHeader Statement %prec IFWITHOUTELSE{
                         CloseCurrentScope();
+                        $$.isNextList = $2.isNextList;
+                        if($2.isNextList){
+                            $$.nextList = $2.nextList;
+                        }
+                        $$.isBreakList = false;
                     }|
-                    IfHeader Statement ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
+                    IfHeader Statement N ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
                         CloseCurrentScope();
+                        BPatchList(*($5.labelToJump), $1.falseList);
+                        $$.isNextList = true;
+                        vector<pair<int, BranchLabelIndex>> mergedList = *($3.nextList);
+                        if($2.isNextList){
+                            mergedList = MergePatchLists(*($2.nextList), mergedList);
+                        }
+                        if($6.isNextList){
+                            mergedList = MergePatchLists(*($6.nextList), mergedList);
+                        }
+                        $$.nextList = new vector<pair<int, BranchLabelIndex>>(mergedList);
+                        $$.isBreakList = false;
                     }|
                     WhileHeader Statement {
                         LeaveLoop();
                         CloseCurrentScope();
+                        ExitLoopPopExpLabel();
+                        vector<pair<int, BranchLabelIndex>> backToExp = CreatePatchList();
+                        BPatchList(*($1.whileExpLabel), backToExp);
+                        vector<pair<int, BranchLabelIndex>> mergedList = *($1.falseList);
+                        if($2.isNextList){
+                            mergedList = MergePatchLists(*($2.nextList), mergedList);
+                        }
+                        if($2.isBreakList){
+                            mergedList = MergePatchLists(*($2.breakList), mergedList);
+                        }
+                        $$.nextList = new vector<pair<int, BranchLabelIndex>>(mergedList);
+                        $$.isNextList = true;
+                        $$.isBreakList = false;
                     }|
                     BREAK SC {
                         CheckIfBreakInLoop();
+                        $$.breakList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+                        $$.isBreakList = true;
+                        $$.isNextList = false;
                     }|
                     CONTINUE SC {
                         CheckIfContinueInLoop();
+                    };
+N:                  {
+                        $$.nextList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
                     };
 IfHeader:           IF LPAREN Exp RPAREN {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($3.type));
                         OpenNewScope();
 						delete $3.type;
+						string labelIfTrue = GenLabel();
+                        BPatchList(labelIfTrue, $3.trueList);
+                        $$.falseList = $3.falseList;
                     };
-WhileHeader:        WHILE LPAREN Exp RPAREN {
+WhileHeader:        WHILE M LPAREN Exp RPAREN {
                         vector<string> expected(1, "BOOL");
-                        CheckTypesMatch(expected, *($3.type));
+                        CheckTypesMatch(expected, *($4.type));
                         EnterLoop();
                         OpenNewScope();
-						delete $3.type;
+						delete $4.type;
+						string labelIfTrue = GenLabel();
+                        BPatchList(labelIfTrue, $4.trueList);
+                        $$.falseList = $4.falseList;
+                        $$.whileExpLabel = $2.labelToJump;
+                        EnterLoopPushExpLabel(*($2.labelToJump));
                     };
 Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
@@ -312,7 +416,7 @@ EnumType:           ENUM ID {
                     };
 M:                  {
                         $$.labelToJump = new string(GenLabel());
-                    }
+                    };
 Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.type = $2.type;
                         if ($2.type == "BOOL"){

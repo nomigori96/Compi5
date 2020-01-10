@@ -74,5 +74,24 @@ struct markerM_t{
     string* labelToJump;
 };
 
+struct statement_t{
+    vector<pair<int, BranchLabelIndex >>* nextList;
+    bool isNextList;
+    vector<pair<int, BranchLabelIndex >>* breakList;
+    bool isBreakList;
+};
+
+struct ifHeader_t{
+    vector<pair<int, BranchLabelIndex >>* falseList;
+};
+
+struct markerN_t{
+    vector<pair<int, BranchLabelIndex >>* nextList;
+};
+
+struct whileHeader_t{
+    vector<pair<int, BranchLabelIndex >>* falseList;
+    string* whileExpLabel;
+};
 
 #endif //HW3SOL_SEMANTIC_TYPES_HPP

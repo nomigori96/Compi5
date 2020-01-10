@@ -15,6 +15,7 @@ string func_args_ptr = "";
 string curr_func_num_args = 0;
 
 stack<bool> while_stack = stack<bool>();
+stack<string> while_exp_labels_stack = stack<string>();
 
 extern int yylineno;
 
@@ -647,4 +648,24 @@ void UpdateVar(string type, string toStore, string varId){
     }
     action = "store i32 " + updatedToStore + ", i32* " + storeTo;
     CodeBuffer::instance().emit(action);
+}
+
+void BPatchList(string labelToPatch, vector<pair<int, BranchLabelIndex >>* someList){
+    CodeBuffer::instance().bpatch(*someList, labelToPatch);
+}
+
+vector<pair<int, BranchLabelIndex >> MergePatchLists(vector<pair<int, BranchLabelIndex >> list1, vector<pair<int, BranchLabelIndex >> list2){
+    return CodeBuffer::instance().merge(list1, list2);
+}
+
+void EnterLoopPushExpLabel(string expLabel){
+    while_exp_labels_stack.push(expLabel);
+}
+
+void ExitLoopPopExpLabel(){
+    while_exp_labels_stack.pop();
+}
+
+void HandleBreak(){
+
 }

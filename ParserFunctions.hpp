@@ -126,6 +126,13 @@ void CreateNewVarGivenValue(string type, string toStore);
 
 void UpdateVar(string type, string toStore, string varId);
 
+void BPatchList(string labelToPatch, vector<pair<int, BranchLabelIndex >>* someList);
+
+vector<pair<int, BranchLabelIndex >> MergePatchLists(vector<pair<int, BranchLabelIndex >> list1, vector<pair<int, BranchLabelIndex >> list2);
+
+void EnterLoopPushExpLabel(string expLabel);
+
+void ExitLoopPopExpLabel();
 
 
 #endif //HW3_PARSERFUNCTIONNEW_HPP
