@@ -134,5 +134,9 @@ void EnterLoopPushExpLabel(string expLabel);
 
 void ExitLoopPopExpLabel();
 
+string GetWhileExpLabel();
+
+string AllocateFuncArgs(int numArgs, vector<string> args);
+
 
 #endif //HW3_PARSERFUNCTIONNEW_HPP

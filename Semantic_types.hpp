@@ -30,6 +30,7 @@ struct call_t{
 
 struct expList_t{
     vector<string>* types;
+    vector<string>* varNames;
 };
 
 struct dummy_t{

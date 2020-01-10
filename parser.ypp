@@ -361,6 +361,9 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     }|
                     CONTINUE SC {
                         CheckIfContinueInLoop();
+                        vector<pair<int, BranchLabelIndex>> continueBr = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+                        string whileExpLabel = GetWhileExpLabel();
+                        BPatchList(whileExpLabel, continueBr);
                     };
 N:                  {
                         $$.nextList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
@@ -390,6 +393,7 @@ Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, *($3.types)));
                         delete $3.types;
+                        AllocateFuncArgs($3.)//TODO
                     }|
                     ID LPAREN RPAREN {
 						string id($1);
@@ -399,11 +403,15 @@ ExpList:            Exp {
                         $$.types = new vector<string>();
                         $$.types->push_back(*($1.type));
                         delete $1.type;
+                        $$.varNames = new vector<string>();
+                        $$.varNames->push_back(*($1.varName));
                     }|
                     Exp COMMA ExpList {
                         $3.types->insert($3.types->begin(), *($1.type));
                         $$.types = $3.types;
                         delete $1.type;
+                        $3.varNames->insert($3.varNames->begin(), *($1.varName));
+                        $$.varNames = $3.varNames;
                     };
 Type:               INT {$$.type = new string("INT");}|
                     BYTE {$$.type = new string("BYTE");}|
@@ -582,6 +590,7 @@ int main(){
     DeclarePrint();
     yyparse();
 	CheckMainExists();
+	// TODO emit "call main"
 	//closing global scope
     CloseCurrentScope();
 	return 0;

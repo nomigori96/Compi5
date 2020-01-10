@@ -666,6 +666,20 @@ void ExitLoopPopExpLabel(){
     while_exp_labels_stack.pop();
 }
 
-void HandleBreak(){
+string GetWhileExpLabel(){
+    return while_exp_labels_stack.top();
+}
 
+string AllocateFuncArgs(int numArgs, vector<string> args){
+    string funcArgsVar = FreshVar();
+    string action = funcArgsVar + " = alloca [" + to_string(numArgs) + " x i32]";
+    CodeBuffer::instance().emit(action);
+    for (int i = 0; i < numArgs; i++){
+        string currVar = FreshVar();
+        string currentVarPtrAction = currVar + " = getelementptr [" + to_string(numArgs) + " x i32]," + "[" + to_string(numArgs) + " x i32]* " + funcArgsVar + ", i32 0, i32 " + to_string(i);
+        string store = "store i32 " + args[i] + ", i32* " + currVar;
+        CodeBuffer::instance().emit(currentVarPtrAction);
+        CodeBuffer::instance().emit(store);
+    }
+    return funcArgsVar;
 }
