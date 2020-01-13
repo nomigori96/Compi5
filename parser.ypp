@@ -453,13 +453,13 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
-                        string varName1 = $1.varName;
-                        string varName2 = $3.varName;
-                        if($$.type == "INT"){
-                            varName1 = ConvertIfByte($1.type, $1.varName);
-                            varName2 = ConvertIfByte($3.type, $3.varName);
+                        string varName1 = *($1.varName);
+                        string varName2 = *($3.varName);
+                        if(*($$.type) == "INT"){
+                            varName1 = ConvertIfByte(*($1.type), *($1.varName));
+                            varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, $$.type));
+                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, *($$.type)));
                         delete $1.type;
                         delete $3.type;
                     }|
