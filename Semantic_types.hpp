@@ -87,8 +87,9 @@ struct ifHeader_t{
     vector<pair<int, BranchLabelIndex >>* falseList;
 };
 
-struct markerN_t{
+struct closeScopeAndOpen_t{
     vector<pair<int, BranchLabelIndex >>* nextList;
+    string* labelToJump;
 };
 
 struct whileHeader_t{

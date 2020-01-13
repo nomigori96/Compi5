@@ -34,7 +34,7 @@ void yyerror(const char*);
     markerM_t markerM;
     statement_t statement;
     ifHeader_t ifHeader;
-    markerN_t markerN;
+    closeScopeAndOpen_t closeScopeAndOpen;
     whileHeader_t whileHeader;
 };
 
@@ -95,13 +95,12 @@ void yyerror(const char*);
 %type <exp> Exp
 %type <dummy> FuncDeclHeader
 %type <dummy> OpenScope
-%type <markerM> CloseScopeAndOpen
+%type <closeScopeAndOpen> CloseScopeAndOpen
 %type <ifHeader> IfHeader
 %type <whileHeader> WhileHeader
 %type <funcIdDecl> FuncIdDecl
 %type <enumIdDecl> EnumIdDecl
 %type <markerM> M
-%type <markerN> N
 
 %%
 
@@ -132,6 +131,7 @@ OpenScope:          {
                         OpenNewScope();
                     };
 CloseScopeAndOpen:  {
+                        $$.nextList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
                         CloseCurrentScope();
 						OpenNewScope();
 						$$.labelToJump = new string(GenLabel());
@@ -324,16 +324,16 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         }
                         $$.isBreakList = false;
                     }|
-                    IfHeader Statement N ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
+                    IfHeader Statement ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
                         CloseCurrentScope();
-                        BPatchList(*($5.labelToJump), $1.falseList);
+                        BPatchList(*($4.labelToJump), $1.falseList);
                         $$.isNextList = true;
-                        vector<pair<int, BranchLabelIndex>> mergedList = *($3.nextList);
+                        vector<pair<int, BranchLabelIndex>> mergedList = *($4.nextList);
                         if($2.isNextList){
                             mergedList = MergePatchLists(*($2.nextList), mergedList);
                         }
-                        if($6.isNextList){
-                            mergedList = MergePatchLists(*($6.nextList), mergedList);
+                        if($5.isNextList){
+                            mergedList = MergePatchLists(*($5.nextList), mergedList);
                         }
                         $$.nextList = new vector<pair<int, BranchLabelIndex>>(mergedList);
                         $$.isBreakList = false;
