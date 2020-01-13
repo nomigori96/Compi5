@@ -218,7 +218,7 @@ Statements:         Statement {
                     } |
                     Statements M Statement {
                         if($1.isNextList){
-                            BPatchList(*($2.labelToJump), $1.nextList)
+                            BPatchList(*($2.labelToJump), $1.nextList);
                         }
                         if($3.isNextList){
                             $$.nextList = $3.nextList;
@@ -282,7 +282,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						string id($2);
                         CheckIfAssignmentAllowedEnum(*($1.typeName), *($4.type), id);
                         AddVariableSymbolIfNotExists(id, *($1.typeName), false);
-                        CreateNewVarGivenValue(*($1.type), *($4.varName));
+                        CreateNewVarGivenValue(*($1.typeName), *($4.varName));
                         delete $1.typeName;
                         delete $4.type;
                         $$.isNextList = false;
@@ -342,7 +342,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         LeaveLoop();
                         CloseCurrentScope();
                         ExitLoopPopExpLabel();
-                        vector<pair<int, BranchLabelIndex>> backToExp = CreatePatchList();
+                        vector<pair<int, BranchLabelIndex>>* backToExp = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
                         BPatchList(*($1.whileExpLabel), backToExp);
                         vector<pair<int, BranchLabelIndex>> mergedList = *($1.falseList);
                         if($2.isNextList){
@@ -363,7 +363,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     }|
                     CONTINUE SC {
                         CheckIfContinueInLoop();
-                        vector<pair<int, BranchLabelIndex>> continueBr = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+                        vector<pair<int, BranchLabelIndex>>* continueBr = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
                         string whileExpLabel = GetWhileExpLabel();
                         BPatchList(whileExpLabel, continueBr);
                     };
@@ -440,7 +440,7 @@ M:                  {
                     };
 Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.type = $2.type;
-                        if ($2.type == "BOOL"){
+                        if (*($2.type) == "BOOL"){
                             $$.trueList = $2.trueList;
                             $$.falseList = $2.falseList;
                         }
