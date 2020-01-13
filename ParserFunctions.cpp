@@ -407,7 +407,10 @@ string WriteStringToBuffer(string str){
     string storeLastVar = "store i8 " + string(1, '\0') + ", i8* " + lastVar;
     CodeBuffer::instance().emit(lastChar);
     CodeBuffer::instance().emit(storeLastVar);
-    return stringArr;
+    string stringStartPtr = FreshVar();
+    string getStringStartPtr = stringStartPtr + " = getelementptr [" + to_string(str.length()) + " x i8]," + "[" + to_string(str.length()) + " x i8]* " + stringArr + ", i8 0, i8 0";
+    CodeBuffer::instance().emit(getStringStartPtr);
+    return stringStartPtr;
 }
 
 
@@ -443,10 +446,7 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             string isZero = CodeBuffer::instance().genLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, FIRST)), isZero);
             string errorMsg = "Error division by zero";
-            string arrVar = WriteStringToBuffer(errorMsg);
-            string stringStartPtr = FreshVar();
-            string argToPassAction = stringStartPtr + " = getelementptr [" + to_string(errorMsg.length()) + " x i32]," + "[" + to_string(errorMsg.length()) + " x i32]* " + arrVar + ", i32 0, i32 0";
-            CodeBuffer::instance().emit(argToPassAction);
+            string stringStartPtr = WriteStringToBuffer(errorMsg);
             divCheck = "call void @print(i8* " + stringStartPtr + ")";
             CodeBuffer::instance().emit(divCheck);
             divCheck = "call void @exit(i32 0)";
@@ -590,7 +590,9 @@ void AllocateLocalVars(){
 }
 
 void CloseFuncDefinition(){
-    string action = "}";
+    string action = "ret void";
+    CodeBuffer::instance().emit(action);
+    action = "}";
     CodeBuffer::instance().emit(action);
 }
 
@@ -688,45 +690,60 @@ string AllocateFuncArgs(int numArgs, vector<string> args){
     return funcArgsVar;
 }
 
+void CallPrintFunction(string toPrintPtr){
+    string action = "call void @print(i8* " + toPrintPtr + ")";
+    CodeBuffer::instance().emit(action);
+}
+
+void CallPrintiFunction(string toPrintPtr){
+    string action = "call void @printi(i32 " + toPrintPtr + ")";
+    CodeBuffer::instance().emit(action);
+}
+
 string CallFunction(string argsAllocationVar, string funcName, int numArgs){
     string returnedFuncVal = FreshVar();
     SymbolTableRecord* wantedRecord = symbol_table.GetSymbolRecordById(funcName);
     string retType = dynamic_cast<FunctionSymbolTableRecord*>(wantedRecord)->GetFuncReturnType();
     string llvmRetType = ConvertToLLVMType(retType);
-    if (funcName == "print"){
-        string stringStartPtr = FreshVar();
-        string argToPassAction = stringStartPtr + " = getelementptr [" + to_string(numArgs) + " x i32]," + "[" + to_string(numArgs) + " x i32]* " + argsAllocationVar + ", i32 0, i32 0";
-        CodeBuffer::instance().emit(argToPassAction);
-        string action = returnedFuncVal + " = call " + llvmRetType + " @" + funcName + "(i8* " + stringStartPtr + ")";
-        CodeBuffer::instance().emit(action);
-    }
-    else if (funcName == "printi"){
-        string allocatedArgPtr = FreshVar();
-        string getAllocatedArgAction = allocatedArgPtr + " = getelementptr [1 x i32], [1 x i32]* " + argsAllocationVar + ", i32 0, i32 0";
-        CodeBuffer::instance().emit(getAllocatedArgAction);
-        string intToPrintVar = FreshVar();
-        string getValueToPrintAction = intToPrintVar + " = load i32, i32* " + allocatedArgPtr;
-        CodeBuffer::instance().emit(getValueToPrintAction);
-        string action = returnedFuncVal + " = call " + llvmRetType + " @" + funcName + "(i32 " + intToPrintVar + ")";
-        CodeBuffer::instance().emit(action);
+    string action;
+    if (llvmRetType == "void"){
+        action = "call " + llvmRetType + " @" + funcName + "( [" + to_string(numArgs) + " x i32]* " + argsAllocationVar + ")";
+        returnedFuncVal = "";
     }
     else {
-        string action = returnedFuncVal + " = call " + llvmRetType + " @" + funcName + "( [" + to_string(numArgs) + " x i32]* " + argsAllocationVar + ")";
-        CodeBuffer::instance().emit(action);
+        action = returnedFuncVal + " = call " + llvmRetType + " @" + funcName + "( [" + to_string(numArgs) + " x i32]* " + argsAllocationVar + ")";
     }
+
+    CodeBuffer::instance().emit(action);
+
     return returnedFuncVal;
 }
-
-//TODO - update both call function methods - to check whether the function returns any value at all (the prints don't return anything)
-//maybe split it to several functions instead of all in one, maybe check the return type in the parser and if it's void decide what to pass
-//in $$.varName (of call)
 
 string CallFunctionNoArgs(string funcName){
     string returnedFuncVal = FreshVar();
     SymbolTableRecord* wantedRecord = symbol_table.GetSymbolRecordById(funcName);
     string retType = dynamic_cast<FunctionSymbolTableRecord*>(wantedRecord)->GetFuncReturnType();
     string llvmRetType = ConvertToLLVMType(retType);
-    string action = returnedFuncVal + " = call " + llvmRetType + " @" + funcName + "()";
+    string action;
+    if (llvmRetType == "void"){
+        action = "call " + llvmRetType + " @" + funcName + "()";
+        returnedFuncVal = "";
+    }
+    else {
+        action = returnedFuncVal + " = call " + llvmRetType + " @" + funcName + "()";
+    }
     CodeBuffer::instance().emit(action);
     return returnedFuncVal;
+}
+
+void emitReturn(string retType, string varToReturn){
+    string llvmRetType = ConvertToLLVMType(retType);
+    string action;
+    if (llvmRetType == "void"){
+        action = "ret void";
+    }
+    else {
+        action = "ret " + llvmRetType + " " + varToReturn;
+    }
+    CodeBuffer::instance().emit(action);
 }

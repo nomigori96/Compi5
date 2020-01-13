@@ -306,6 +306,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         CheckReturnValid(void_str);
                         $$.isNextList = false;
                         $$.isBreakList = false;
+                        emitReturn(void_str, "");
                     }|
                     RETURN Exp SC {
                         CheckReturnValid(*($2.type));
@@ -313,6 +314,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         delete $2.type;
                         $$.isNextList = false;
                         $$.isBreakList = false;
+                        emitReturn(*($2.type), *($2.varName));
                     }|
                     IfHeader Statement %prec IFWITHOUTELSE{
                         CloseCurrentScope();
@@ -393,8 +395,17 @@ Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, *($3.types)));
                         delete $3.types;
-                        string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames));
-						string returnedValue = CallFunction(allocatedArgs, id, ($3.varNames)->size());
+                        string returnedValue = "";
+                        if (id == "print"){
+                            CallPrintFunction($3.varNames->front());
+                        }
+                        else if (id == "printi"){
+                            CallPrintiFunction($3.varNames->front());
+                        }
+                        else {
+                            string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames));
+                            returnedValue = CallFunction(allocatedArgs, id, ($3.varNames)->size());
+                        }
 						$$.varName = new string(returnedValue);
 
                     }|
@@ -494,6 +505,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     STRING {
                         $$.type = new string("STRING");
                         $$.varName = new string(WriteStringToBuffer(string($1)));
+
                     }|
                     TRUE {
                         $$.type = new string("BOOL");

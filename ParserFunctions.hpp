@@ -142,4 +142,10 @@ string CallFunction(string argsAllocationVar, string funcName, int numArgs);
 
 string CallFunctionNoArgs(string funcName);
 
+void CallPrintFunction(string toPrintPtr);
+
+void CallPrintiFunction(string toPrintPtr);
+
+void emitReturn(string retType, string varToReturn);
+
 #endif //HW3_PARSERFUNCTIONNEW_HPP
