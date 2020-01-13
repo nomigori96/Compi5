@@ -393,11 +393,16 @@ Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, *($3.types)));
                         delete $3.types;
-                        AllocateFuncArgs($3.)//TODO
+                        string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames));
+						string returnedValue = CallFunction(allocatedArgs, id, ($3.varNames)->size());
+						$$.varName = new string(returnedValue);
+
                     }|
                     ID LPAREN RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, vector<string>()));
+						string returnedValue = CallFunctionNoArgs(id);
+						$$.varName = new string(returnedValue);
                     };
 ExpList:            Exp {
                         $$.types = new vector<string>();
@@ -474,6 +479,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     }|
                     Call {
                         $$.type = $1.type;
+						$$.varName = $1.varName;
                     }|
                     NUM {
                         $$.type = new string("INT");

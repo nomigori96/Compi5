@@ -26,6 +26,7 @@ struct enumType_t{
 
 struct call_t{
     string* type;
+    string* varName;
 };
 
 struct expList_t{
