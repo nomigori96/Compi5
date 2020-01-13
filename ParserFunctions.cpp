@@ -425,7 +425,13 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
     else {
         actionType = "i32";
     }
-
+    string divCheck;
+    string condVar;
+    int condBrToPatch;
+    string isZero;
+    string errorMsg;
+    string stringStartPtr;
+    string isNotZero;
     switch(op){
         case '+':
             action += "add " + actionType + " " + arg1 + " , " + arg2;
@@ -437,22 +443,21 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             action += "mul " + actionType + " " + arg1 + " , " + arg2;
             break;
         case '/':
-            string divCheck;
-            string condVar = FreshVar();
+            condVar = FreshVar();
             divCheck = condVar + " = icmp eq " + actionType + " 0, " + arg2;
             CodeBuffer::instance().emit(divCheck);
             divCheck = "br i1 " + condVar + ", label @, label @";
-            int condBrToPatch = CodeBuffer::instance().emit(divCheck);
-            string isZero = CodeBuffer::instance().genLabel();
-            CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, FIRST)), isZero);
-            string errorMsg = "Error division by zero";
-            string stringStartPtr = WriteStringToBuffer(errorMsg);
+            condBrToPatch= CodeBuffer::instance().emit(divCheck);
+            isZero = CodeBuffer::instance().genLabel();
+            CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair<int, BranchLabelIndex>(condBrToPatch, FIRST)), isZero);
+            errorMsg = "Error division by zero";
+            stringStartPtr = WriteStringToBuffer(errorMsg);
             divCheck = "call void @print(i8* " + stringStartPtr + ")";
             CodeBuffer::instance().emit(divCheck);
             divCheck = "call void @exit(i32 0)";
             CodeBuffer::instance().emit(divCheck);
-            string isNotZero = CodeBuffer::instance().genLabel();
-            CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair(condBrToPatch, SECOND)), isNotZero);
+            isNotZero = CodeBuffer::instance().genLabel();
+            CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair<int, BranchLabelIndex>(condBrToPatch, SECOND)), isNotZero);
             action += "sdiv " + actionType + " " + arg1 + " , " + arg2;
             break;
         default:
