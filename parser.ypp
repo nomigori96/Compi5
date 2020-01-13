@@ -490,13 +490,15 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
 						$$.varName = $1.varName;
                     }|
                     NUM {
+                        string val($1);
                         $$.type = new string("INT");
-                        $$.varName = CreateInitialIntegerVar($1);
+                        $$.varName = CreateInitialIntegerVar(val);
                     }|
                     NUM B {
-                        CheckNumValidity($1);
+                        string val($1);
+                        CheckNumValidity(val);
                         $$.type = new string("BYTE");
-                        $$.varName = CreateInitialByteVar($1);
+                        $$.varName = CreateInitialByteVar(val);
 
                     }|
                     STRING {
