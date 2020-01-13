@@ -367,9 +367,6 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                         string whileExpLabel = GetWhileExpLabel();
                         BPatchList(whileExpLabel, continueBr);
                     };
-N:                  {
-                        $$.nextList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
-                    };
 IfHeader:           IF LPAREN Exp RPAREN {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($3.type));
