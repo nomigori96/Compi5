@@ -272,7 +272,14 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.type), false);
                         CheckIfAssignmentAllowed(*($1.type), *($4.type));
-                        CreateNewVarGivenValue(*($1.type), *($4.varName));
+						string expVarName;
+						if (*($4.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($4.trueList, $4.falseList);
+						}
+						else {
+							expVarName = *($4.varName);
+						}
+                        CreateNewVarGivenValue(*($1.type), expVarName);
                         delete $1.type;
                         delete $4.type;
                         $$.isNextList = false;
@@ -291,7 +298,14 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     ID ASSIGN Exp SC {
 						string id($1);
                         HandleAssignmentForExistingVar(id, *($3.type));
-                        UpdateVar(*($3.type), *($3.varName), $1);
+						string expVarName;
+						if (*($3.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($3.trueList, $3.falseList);
+						}
+						else {
+							expVarName = *($3.varName);
+						}
+                        UpdateVar(*($3.type), expVarName, $1);
                         delete $3.type;
                         $$.isNextList = false;
                         $$.isBreakList = false;
@@ -415,16 +429,31 @@ Call:               ID LPAREN ExpList RPAREN {
 ExpList:            Exp {
                         $$.types = new vector<string>();
                         $$.types->push_back(*($1.type));
-                        delete $1.type;
                         $$.varNames = new vector<string>();
-                        $$.varNames->push_back(*($1.varName));
+						string expVarName;
+						if (*($1.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($1.trueList, $1.falseList);
+						}
+						else {
+							expVarName = *($1.varName);
+						}
+                        $$.varNames->push_back(expVarName);
+						
+						delete $1.type;
                     }|
                     Exp COMMA ExpList {
                         $3.types->insert($3.types->begin(), *($1.type));
                         $$.types = $3.types;
-                        delete $1.type;
-                        $3.varNames->insert($3.varNames->begin(), *($1.varName));
-                        $$.varNames = $3.varNames;
+                        string expVarName;
+						if (*($1.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($1.trueList, $1.falseList);
+						}
+						else {
+							expVarName = *($1.varName);
+						}
+						$$.varNames = $3.varNames;
+                        $3.varNames->insert($3.varNames->begin(), expVarName);
+						delete $1.type;
                     };
 Type:               INT {$$.type = new string("INT");}|
                     BYTE {$$.type = new string("BYTE");}|
@@ -484,6 +513,12 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
 						string id($1);
                         $$.type = new string(GetExpressionTypeById(id));
                         $$.varName = new string(HandleExpId(id));
+						if (*($$.type) == "BOOL"){
+							vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+							HandleBoolVarAsExp(*($$.varName), trueList, falseList);
+							$$.falseList = falseList;
+							$$.trueList = trueList;
+						}
                     }|
                     Call {
                         $$.type = $1.type;
@@ -607,9 +642,9 @@ int main(){
     DeclarePrint();
     yyparse();
 	CheckMainExists();
-	callMainFunc();
+	CallMainFunc();
 	//closing global scope
     CloseCurrentScope();
-	printLLVMCode();
+	PrintLLVMCode();
 	return 0;
 }

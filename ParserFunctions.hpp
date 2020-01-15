@@ -148,8 +148,12 @@ void CallPrintiFunction(string toPrintPtr);
 
 void emitReturn(string retType, string varToReturn);
 
-void callMainFunc();
+void CallMainFunc();
 
-void printLLVMCode();
+void PrintLLVMCode();
+
+void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList);
+
+string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pair<int, BranchLabelIndex>>* falseList);
 
 #endif //HW3_PARSERFUNCTIONNEW_HPP

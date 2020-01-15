@@ -44,6 +44,7 @@ void OpenNewScope()
 
 void CloseCurrentScope()
 {
+    /*
     endScope();
     vector<SymbolTableRecord*> currentScope = symbol_table.GetCurrentScope();
     for (auto &symbol : currentScope){
@@ -65,6 +66,7 @@ void CloseCurrentScope()
             printEnumType(symbol->GetName(), enumValues);
         }
     }
+    */
     symbol_table.CloseCurrentScope();
 }
 
@@ -549,18 +551,16 @@ string HandleExpId(string id){
 
         return existingVarReg;
     }
-    else {
-        //id is enum value
-        string enumType = symbol_table.FindEnumTypeByGivenValue(id);
-        SymbolTableRecord* enumTypeRecord = symbol_table.GetSymbolRecordById(enumType);
-        vector<string> enumValues = dynamic_cast<EnumSymbolTableRecord*>(enumTypeRecord)->GetEnumValues();
-        vector<string>::iterator itr = find(enumValues.begin(), enumValues.end(), id);
-        int enumValueNum = distance(enumValues.begin(), itr);
-        string enumValueVar = FreshVar();
-        string action = enumValueVar + " = add i32 0, " + to_string(enumValueNum);
-        CodeBuffer::instance().emit(action);
-        return  enumValueVar;
-    }
+    //id is enum value
+    string enumType = symbol_table.FindEnumTypeByGivenValue(id);
+    SymbolTableRecord* enumTypeRecord = symbol_table.GetSymbolRecordById(enumType);
+    vector<string> enumValues = dynamic_cast<EnumSymbolTableRecord*>(enumTypeRecord)->GetEnumValues();
+    vector<string>::iterator itr = find(enumValues.begin(), enumValues.end(), id);
+    int enumValueNum = distance(enumValues.begin(), itr);
+    string enumValueVar = FreshVar();
+    string action = enumValueVar + " = add i32 0, " + to_string(enumValueNum);
+    CodeBuffer::instance().emit(action);
+    return  enumValueVar;
 }
 
 string ConvertToLLVMType(string type){
@@ -753,11 +753,31 @@ void emitReturn(string retType, string varToReturn){
     CodeBuffer::instance().emit(action);
 }
 
-void callMainFunc(){
+void CallMainFunc(){
     string action = "call void @main()";
     CodeBuffer::instance().emit(action);
 }
 
-void printLLVMCode(){
+void PrintLLVMCode(){
     CodeBuffer::instance().printCodeBuffer();
+}
+
+void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList){
+    string condBr = "br i1 " + regWithBoolValueName + ", label @, label @";
+    int patchLocation = CodeBuffer::instance().emit(condBr);
+    trueList = new vector<pair<int, BranchLabelIndex>>(CodeBuffer::instance().makelist(pair<int, BranchLabelIndex >(patchLocation, FIRST)));
+    falseList = new vector<pair<int, BranchLabelIndex>>(CodeBuffer::instance().makelist(pair<int, BranchLabelIndex >(patchLocation, SECOND)));
+}
+
+string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pair<int, BranchLabelIndex>>* falseList){
+    string regToSaveIn = FreshVar();
+    string trueLabel = CodeBuffer::instance().genLabel();
+    string action = regToSaveIn + " = add i1 0, 1";
+    CodeBuffer::instance().emit(action);
+    string falseLabel = CodeBuffer::instance().genLabel();
+    action = regToSaveIn + " = add i1 0, 0";
+    CodeBuffer::instance().emit(action);
+    CodeBuffer::instance().bpatch(*trueList, trueLabel);
+    CodeBuffer::instance().bpatch(*falseList, falseLabel);
+    return regToSaveIn;
 }
