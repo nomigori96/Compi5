@@ -607,8 +607,9 @@ int main(){
     DeclarePrint();
     yyparse();
 	CheckMainExists();
-	// TODO emit "call main"
+	callMainFunc();
 	//closing global scope
     CloseCurrentScope();
+	printCodeBuffer();
 	return 0;
 }

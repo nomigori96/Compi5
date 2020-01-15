@@ -148,4 +148,6 @@ void CallPrintiFunction(string toPrintPtr);
 
 void emitReturn(string retType, string varToReturn);
 
+void callMainFunc();
+
 #endif //HW3_PARSERFUNCTIONNEW_HPP
