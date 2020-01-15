@@ -17,6 +17,8 @@ string curr_func_num_args = "";
 stack<bool> while_stack;
 stack<string> while_exp_labels_stack;
 
+unsigned long long vars_counter = 0;
+
 extern int yylineno;
 
 void CheckMainExists()
@@ -373,7 +375,7 @@ void DeclarePrint(){
 }
 
 string FreshVar(){
-    return "%var" + __COUNTER__;
+    return "%var" + to_string(vars_counter++);
 }
 
 
@@ -412,17 +414,19 @@ string WriteStringToBuffer(string str){
     for (int i = 0; i < stringLength; i++){
         string currVar = FreshVar();
         string currentChar = currVar + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 " + to_string(i);
-        string store = "store i8 " + string(1, str[i]) + ", i8* " + currVar;
+        int theChar = (int)str[i];
+        string store = "store i8 " + to_string(theChar) + ", i8* " + currVar;
         CodeBuffer::instance().emit(currentChar);
         CodeBuffer::instance().emit(store);
     }
     string lastVar = FreshVar();
     string lastChar = lastVar + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 " + to_string(stringLength);
-    string storeLastVar = "store i8 " + string(1, '\0') + ", i8* " + lastVar;
+    int stringEndChar = (int)'\0';
+    string storeLastVar = "store i8 " + to_string(stringEndChar) + ", i8* " + lastVar;
     CodeBuffer::instance().emit(lastChar);
     CodeBuffer::instance().emit(storeLastVar);
     string stringStartPtr = FreshVar();
-    string getStringStartPtr = stringStartPtr + " = getelementptr [" + to_string(str.length()) + " x i8]," + "[" + to_string(str.length()) + " x i8]* " + stringArr + ", i8 0, i8 0";
+    string getStringStartPtr = stringStartPtr + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 0";
     CodeBuffer::instance().emit(getStringStartPtr);
     return stringStartPtr;
 }
@@ -462,7 +466,7 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             CodeBuffer::instance().emit(divCheck);
             divCheck = "br i1 " + condVar + ", label @, label @";
             condBrToPatch= CodeBuffer::instance().emit(divCheck);
-            isZero = CodeBuffer::instance().genLabel();
+            isZero = GenLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair<int, BranchLabelIndex>(condBrToPatch, FIRST)), isZero);
             errorMsg = "Error division by zero";
             stringStartPtr = WriteStringToBuffer(errorMsg);
@@ -470,7 +474,7 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             CodeBuffer::instance().emit(divCheck);
             divCheck = "call void @exit(i32 0)";
             CodeBuffer::instance().emit(divCheck);
-            isNotZero = CodeBuffer::instance().genLabel();
+            isNotZero = GenLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair<int, BranchLabelIndex>(condBrToPatch, SECOND)), isNotZero);
             action += "sdiv " + actionType + " " + arg1 + " , " + arg2;
             break;
@@ -529,7 +533,10 @@ vector<pair<int, BranchLabelIndex>> CreatePatchList(){
 }
 
 string GenLabel(){
-    return CodeBuffer::instance().genLabel();
+    auto brToPatch = CreatePatchList();
+    string addedLabel = CodeBuffer::instance().genLabel();
+    CodeBuffer::instance().bpatch(brToPatch, addedLabel);
+    return addedLabel;
 }
 
 void HandleAnd(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<int, BranchLabelIndex>>* &resFalseList, vector<pair<int, BranchLabelIndex>>* B1TrueList, vector<pair<int, BranchLabelIndex>>* B1FalseList,vector<pair<int, BranchLabelIndex>>* B2TrueList, vector<pair<int, BranchLabelIndex>>* B2FalseList, string beforeSecondLabel){
@@ -552,7 +559,7 @@ string HandleExpId(string id){
         string action;
         string loadFrom = FreshVar();
         if (offset < 0){
-            action = loadFrom + " = getelementptr [" + curr_func_num_args + " x i32], [" + curr_func_num_args + " x i32]* " + func_args_ptr + ", i32 0, i32 " + to_string(abs(offset));
+            action = loadFrom + " = getelementptr [" + curr_func_num_args + " x i32], [" + curr_func_num_args + " x i32]* " + func_args_ptr + ", i32 0, i32 " + to_string(abs(offset) - 1);
         }
         else {
             action = loadFrom + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(offset);
@@ -560,8 +567,13 @@ string HandleExpId(string id){
         CodeBuffer::instance().emit(action);
         string existingVarReg = FreshVar();
         action = existingVarReg + " = load i32, i32* " + loadFrom;
+        CodeBuffer::instance().emit(action);
+        string llvmType = ConvertToLLVMType(recordType);
+        string existingVarConvertedReg = FreshVar();
+        action = existingVarConvertedReg + " = trunc i32 " + existingVarReg + " to " + llvmType;
+        CodeBuffer::instance().emit(action);
 
-        return existingVarReg;
+        return existingVarConvertedReg;
     }
     //id is enum value
     string enumType = symbol_table.FindEnumTypeByGivenValue(id);
@@ -607,11 +619,13 @@ void AllocateLocalVars(){
     CodeBuffer::instance().emit(action);
 }
 
-void CloseFuncDefinition(){
+string CloseFuncDefinition(){
+    string endFuncLabel = GenLabel();
     string action = "ret void";
     CodeBuffer::instance().emit(action);
     action = "}";
     CodeBuffer::instance().emit(action);
+    return endFuncLabel;
 }
 
 void CreateNewVarDefaultValue(){
@@ -784,13 +798,16 @@ void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabe
 
 string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pair<int, BranchLabelIndex>>* falseList){
     string regToSaveIn = FreshVar();
-    string trueLabel = CodeBuffer::instance().genLabel();
+    string trueLabel = GenLabel();
     string action = regToSaveIn + " = add i1 0, 1";
     CodeBuffer::instance().emit(action);
-    string falseLabel = CodeBuffer::instance().genLabel();
+    string falseLabel = GenLabel();
     action = regToSaveIn + " = add i1 0, 0";
     CodeBuffer::instance().emit(action);
     CodeBuffer::instance().bpatch(*trueList, trueLabel);
     CodeBuffer::instance().bpatch(*falseList, falseLabel);
     return regToSaveIn;
+    // TODO - we need to insert a branch after the if body - nextlist and all
+    // problematic - thwew are two uses of the same reg name (for both true/false)
+    // is this the place to use phi???
 }

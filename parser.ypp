@@ -108,7 +108,14 @@ Program:            Enums Funcs {};
 Funcs:              {}|
                     FuncDecl Funcs ;
 FuncDecl:           FuncDeclHeader Statements RBRACE {
-                        CloseFuncDefinition();
+						string endOfFuncLabel = CloseFuncDefinition();
+						if ($2.isNextList){
+							BPatchList(endOfFuncLabel, $2.nextList);
+						}
+						if ($2.isBreakList){
+							BPatchList(endOfFuncLabel, $2.breakList);
+						}
+                        
                         CloseCurrentScope();
                     };
 FuncIdDecl:         RetType ID {
