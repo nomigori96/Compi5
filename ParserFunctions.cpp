@@ -351,12 +351,24 @@ void DeclarePrintfAndExit(){
 }
 
 void DeclarePrinti(){
-    string printi = "define void @printi(i32) {call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.int_specifier, i32 0, i32 0), i32 %0)ret void}";
+    string printi = "define void @printi(i32) {";
+    CodeBuffer::instance().emit(printi);
+    printi = "call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.int_specifier, i32 0, i32 0), i32 %0)";
+    CodeBuffer::instance().emit(printi);
+    printi = "ret void";
+    CodeBuffer::instance().emit(printi);
+    printi = "}";
     CodeBuffer::instance().emit(printi);
 }
 
 void DeclarePrint(){
-    string print = "define void @print(i8*) {call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @.str_specifier, i32 0, i32 0), i8* %0)ret void";
+    string print = "define void @print(i8*) {";
+    CodeBuffer::instance().emit(print);
+    print = "call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @.str_specifier, i32 0, i32 0), i8* %0)";
+    CodeBuffer::instance().emit(print);
+    print = "ret void";
+    CodeBuffer::instance().emit(print);
+    print = "}";
     CodeBuffer::instance().emit(print);
 }
 
@@ -579,7 +591,8 @@ string ConvertToLLVMType(string type){
 }
 
 void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string, bool>>* args){
-    string funcDecl = "define " + funcRetType + " @" + funcName + "(";
+    string llvmRetType = ConvertToLLVMType(funcRetType);
+    string funcDecl = "define " + llvmRetType + " @" + funcName + "(";
     func_args_ptr = FreshVar();
     curr_func_num_args = to_string(args->size());
     funcDecl += "[" + curr_func_num_args + " x i32]* " + func_args_ptr;
