@@ -12,10 +12,10 @@ string curr_function_return_type = "";
 int local_stack_ptr = 0;
 string local_vars_ptr = "";
 string func_args_ptr = "";
-string curr_func_num_args = 0;
+string curr_func_num_args = "";
 
-stack<bool> while_stack = stack<bool>();
-stack<string> while_exp_labels_stack = stack<string>();
+stack<bool> while_stack;
+stack<string> while_exp_labels_stack;
 
 extern int yylineno;
 
