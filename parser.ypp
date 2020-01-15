@@ -492,13 +492,13 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     NUM {
                         string val($1);
                         $$.type = new string("INT");
-                        $$.varName = CreateInitialIntegerVar(val);
+                        $$.varName = new string(CreateInitialIntegerVar(val));
                     }|
                     NUM B {
                         string val($1);
-                        CheckNumValidity(val);
+                        CheckNumValidity(stoi(val));
                         $$.type = new string("BYTE");
-                        $$.varName = CreateInitialByteVar(val);
+                        $$.varName = new string(CreateInitialByteVar(val));
 
                     }|
                     STRING {
@@ -527,8 +527,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($4.type));
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
-                        HandleAnd(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, $3.labelToJump)
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+                        HandleAnd(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, *($3.labelToJump));
                         $$.trueList = trueList;
                         $$.falseList = falseList;
                         $$.type = $1.type;
@@ -538,8 +538,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($4.type));
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
-                        HandleOr(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, $3.labelToJump)
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+                        HandleOr(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, *($3.labelToJump));
                         $$.trueList = trueList;
                         $$.falseList = falseList;
                         $$.type = $1.type;
@@ -552,14 +552,14 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string("BOOL");
-                        string varName1 = $1.varName;
-                        string varName2 = $3.varName;
+                        string varName1 = *($1.varName);
+                        string varName2 = *($3.varName);
                         string commonType = DetermineBinopReturnType(*($1.type), *($3.type));
                         if(commonType == "INT"){
-                            varName1 = ConvertIfByte($1.type, $1.varName);
-                            varName2 = ConvertIfByte($3.type, $3.varName);
+                            varName1 = ConvertIfByte(*($1.type), *($1.varName));
+                            varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
                         CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
                         $$.trueList = trueList;
                         $$.falseList = falseList;
@@ -573,14 +573,14 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string("BOOL");
-                        string varName1 = $1.varName;
-                        string varName2 = $3.varName;
+                        string varName1 = *($1.varName);
+                        string varName2 = *($3.varName);
                         string commonType = DetermineBinopReturnType(*($1.type), *($3.type));
                         if(commonType == "INT"){
-                            varName1 = ConvertIfByte($1.type, $1.varName);
-                            varName2 = ConvertIfByte($3.type, $3.varName);
+                            varName1 = ConvertIfByte(*($1.type), *($1.varName));
+                            varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
                         CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
                         $$.trueList = trueList;
                         $$.falseList = falseList;
