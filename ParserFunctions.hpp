@@ -150,4 +150,6 @@ void emitReturn(string retType, string varToReturn);
 
 void callMainFunc();
 
+void printLLVMCode();
+
 #endif //HW3_PARSERFUNCTIONNEW_HPP

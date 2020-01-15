@@ -757,3 +757,7 @@ void callMainFunc(){
     string action = "call void @main()";
     CodeBuffer::instance().emit(action);
 }
+
+void printLLVMCode(){
+    CodeBuffer::instance().printCodeBuffer();
+}
