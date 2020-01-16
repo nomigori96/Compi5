@@ -469,6 +469,7 @@ ExpList:            Exp {
 						$$.varNames = $3.varNames;
                         $3.varNames->insert($3.varNames->begin(), expVarName);
 						$$.nextExpEvalLabel = $1.evalLabel;
+						$$.nextList = $3.nextList;
 						vector<pair<int, BranchLabelIndex>>* brToNextExpEval = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
 						BPatchList(*($3.nextExpEvalLabel), brToNextExpEval);
 						delete $1.type;
