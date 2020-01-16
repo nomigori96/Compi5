@@ -248,10 +248,11 @@ Statements:         Statement {
                     };
 Statement:          LBRACE OpenScope Statements RBRACE {
                         CloseCurrentScope();
-                        if($3.isNextList){
-                            $$.nextList = $3.nextList;
-                        }
-                        $$.isNextList = $3.isNextList;
+						string afterStatements = GenLabel();
+						if($3.isNextList){
+							BPatchList(afterStatements, $3.nextList);
+						}
+                        $$.isNextList = false;
                         if($3.isBreakList){
                             $$.breakList = $3.breakList;
                         }
