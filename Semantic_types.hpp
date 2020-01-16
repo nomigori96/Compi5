@@ -68,6 +68,10 @@ struct funcIdDecl_t{
     string* retType;
 };
 
+struct funcDeclHeader_t{
+    string* retType;
+};
+
 struct enumIdDecl_t{
     string* enumId;
 };

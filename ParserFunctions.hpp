@@ -118,7 +118,7 @@ void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string
 
 void AllocateLocalVars();
 
-string CloseFuncDefinition();
+string CloseFuncDefinition(string funcRetType);
 
 void CreateNewVarDefaultValue();
 
@@ -147,8 +147,6 @@ void CallPrintFunction(string toPrintPtr);
 void CallPrintiFunction(string toPrintPtr);
 
 void emitReturn(string retType, string varToReturn);
-
-void CallMainFunc();
 
 void PrintLLVMCode();
 
