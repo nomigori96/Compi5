@@ -14,6 +14,7 @@ struct exp_t{
     string* varName;
     vector<pair<int, BranchLabelIndex >>* trueList;
     vector<pair<int, BranchLabelIndex >>* falseList;
+    string* evalLabel;
 };
 
 struct type_t{
@@ -32,6 +33,8 @@ struct call_t{
 struct expList_t{
     vector<string>* types;
     vector<string>* varNames;
+    string* nextExpEvalLabel;
+    vector<pair<int, BranchLabelIndex >>* nextList;
 };
 
 struct dummy_t{

@@ -416,6 +416,9 @@ WhileHeader:        WHILE M LPAREN Exp RPAREN {
 Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, *($3.types)));
+						
+						string beforeCallLabel = GenLabel();
+						BPatchList(beforeCallLabel, $3.nextList);
                         string returnedValue = "";
                         if (id == "print"){
                             CallPrintFunction($3.varNames->front());
@@ -449,7 +452,8 @@ ExpList:            Exp {
 							expVarName = *($1.varName);
 						}
                         $$.varNames->push_back(expVarName);
-						
+						$$.nextList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+						$$.nextExpEvalLabel = $1.evalLabel;
 						delete $1.type;
                     }|
                     Exp COMMA ExpList {
@@ -464,6 +468,9 @@ ExpList:            Exp {
 						}
 						$$.varNames = $3.varNames;
                         $3.varNames->insert($3.varNames->begin(), expVarName);
+						$$.nextExpEvalLabel = $1.evalLabel;
+						vector<pair<int, BranchLabelIndex>>* brToNextExpEval = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
+						BPatchList(*($3.nextExpEvalLabel), brToNextExpEval);
 						delete $1.type;
                     };
 Type:               INT {$$.type = new string("INT");}|
@@ -485,6 +492,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                             $$.falseList = $2.falseList;
                         }
                         $$.varName = $2.varName;
+						$$.evalLabel = $2.evalLabel;
                     }|
                     Exp ADDITIVE Exp {
                         vector<string> expected;
@@ -493,6 +501,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
+						
+						$$.evalLabel = new string(GenLabel());
                         string varName1 = *($1.varName);
                         string varName2 = *($3.varName);
                         if(*($$.type) == "INT"){
@@ -510,6 +520,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
+						
+						$$.evalLabel = new string(GenLabel());
                         string varName1 = *($1.varName);
                         string varName2 = *($3.varName);
                         if(*($$.type) == "INT"){
@@ -523,6 +535,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     ID {
 						string id($1);
                         $$.type = new string(GetExpressionTypeById(id));
+						
+						$$.evalLabel = new string(GenLabel());
                         $$.varName = new string(HandleExpId(id));
 						if (*($$.type) == "BOOL"){
 							vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
@@ -534,16 +548,19 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     Call {
                         $$.type = $1.type;
 						$$.varName = $1.varName;
+						$$.evalLabel = new string(GenLabel());
                     }|
                     NUM {
                         string val($1);
                         $$.type = new string("INT");
+						$$.evalLabel = new string(GenLabel());
                         $$.varName = new string(CreateInitialIntegerVar(val));
                     }|
                     NUM B {
                         string val($1);
                         CheckNumValidity(stoi(val));
                         $$.type = new string("BYTE");
+						$$.evalLabel = new string(GenLabel());
                         $$.varName = new string(CreateInitialByteVar(val));
 
                     }|
@@ -551,16 +568,19 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.type = new string("STRING");
 						string wholeStr($1);
 						string wantedStr = wholeStr.substr(1, wholeStr.length() - 2);
+						$$.evalLabel = new string(GenLabel());
                         $$.varName = new string(WriteStringToBuffer(wantedStr));
 
                     }|
                     TRUE {
                         $$.type = new string("BOOL");
+						$$.evalLabel = new string(GenLabel());
                         $$.trueList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
                         $$.falseList = new vector<pair<int, BranchLabelIndex>>();
                     }|
                     FALSE {
                         $$.type = new string("BOOL");
+						$$.evalLabel = new string(GenLabel());
                         $$.falseList = new vector<pair<int, BranchLabelIndex>>(CreatePatchList());
                         $$.trueList = new vector<pair<int, BranchLabelIndex>>();
                     }|
@@ -570,6 +590,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.type = $2.type;
                         $$.trueList = $2.falseList;
                         $$.falseList = $2.trueList;
+						$$.evalLabel = $2.evalLabel;
                     }|
                     Exp AND M Exp {
                         vector<string> expected(1, "BOOL");
@@ -580,6 +601,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.trueList = trueList;
                         $$.falseList = falseList;
                         $$.type = $1.type;
+						$$.evalLabel = $1.evalLabel;
 						delete $4.type;
                     }|
                     Exp OR M Exp {
@@ -591,6 +613,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         $$.trueList = trueList;
                         $$.falseList = falseList;
                         $$.type = $1.type;
+						$$.evalLabel = $1.evalLabel;
 						delete $4.type;
                     }|
                     Exp RELATIONAL Exp {
@@ -611,6 +634,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
                         $$.trueList = trueList;
                         $$.falseList = falseList;
+						$$.evalLabel = $1.evalLabel;
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -632,14 +656,16 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
                         $$.trueList = trueList;
                         $$.falseList = falseList;
+						$$.evalLabel = $1.evalLabel;
                         delete $1.type;
                         delete $3.type;
                     }|
                     LPAREN Type RPAREN Exp %prec CAST {
                         isExplicitCastAllowed(*($2.type), *($4.type));
 						$$.type = $2.type;
-						delete $4.type;
 						$$.varName = $4.varName;
+						$$.evalLabel = $4.evalLabel;
+						delete $4.type;
                     };
 
 %%
