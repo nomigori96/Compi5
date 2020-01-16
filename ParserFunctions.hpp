@@ -118,7 +118,7 @@ void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string
 
 void AllocateLocalVars();
 
-void CloseFuncDefinition();
+string CloseFuncDefinition();
 
 void CreateNewVarDefaultValue();
 
@@ -136,7 +136,7 @@ void ExitLoopPopExpLabel();
 
 string GetWhileExpLabel();
 
-string AllocateFuncArgs(int numArgs, vector<string> args);
+string AllocateFuncArgs(int numArgs, vector<string> args, vector<string> argsTypes);
 
 string CallFunction(string argsAllocationVar, string funcName, int numArgs);
 
@@ -147,5 +147,13 @@ void CallPrintFunction(string toPrintPtr);
 void CallPrintiFunction(string toPrintPtr);
 
 void emitReturn(string retType, string varToReturn);
+
+void CallMainFunc();
+
+void PrintLLVMCode();
+
+void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList);
+
+string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pair<int, BranchLabelIndex>>* falseList);
 
 #endif //HW3_PARSERFUNCTIONNEW_HPP

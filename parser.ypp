@@ -108,7 +108,14 @@ Program:            Enums Funcs {};
 Funcs:              {}|
                     FuncDecl Funcs ;
 FuncDecl:           FuncDeclHeader Statements RBRACE {
-                        CloseFuncDefinition();
+						string endOfFuncLabel = CloseFuncDefinition();
+						if ($2.isNextList){
+							BPatchList(endOfFuncLabel, $2.nextList);
+						}
+						if ($2.isBreakList){
+							BPatchList(endOfFuncLabel, $2.breakList);
+						}
+                        
                         CloseCurrentScope();
                     };
 FuncIdDecl:         RetType ID {
@@ -272,7 +279,14 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						string id($2);
                         AddVariableSymbolIfNotExists(id, *($1.type), false);
                         CheckIfAssignmentAllowed(*($1.type), *($4.type));
-                        CreateNewVarGivenValue(*($1.type), *($4.varName));
+						string expVarName;
+						if (*($4.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($4.trueList, $4.falseList);
+						}
+						else {
+							expVarName = *($4.varName);
+						}
+                        CreateNewVarGivenValue(*($1.type), expVarName);
                         delete $1.type;
                         delete $4.type;
                         $$.isNextList = false;
@@ -291,7 +305,14 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     ID ASSIGN Exp SC {
 						string id($1);
                         HandleAssignmentForExistingVar(id, *($3.type));
-                        UpdateVar(*($3.type), *($3.varName), $1);
+						string expVarName;
+						if (*($3.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($3.trueList, $3.falseList);
+						}
+						else {
+							expVarName = *($3.varName);
+						}
+                        UpdateVar(*($3.type), expVarName, $1);
                         delete $3.type;
                         $$.isNextList = false;
                         $$.isBreakList = false;
@@ -391,7 +412,6 @@ WhileHeader:        WHILE M LPAREN Exp RPAREN {
 Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, *($3.types)));
-                        delete $3.types;
                         string returnedValue = "";
                         if (id == "print"){
                             CallPrintFunction($3.varNames->front());
@@ -400,10 +420,11 @@ Call:               ID LPAREN ExpList RPAREN {
                             CallPrintiFunction($3.varNames->front());
                         }
                         else {
-                            string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames));
+                            string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames), *($3.types));
                             returnedValue = CallFunction(allocatedArgs, id, ($3.varNames)->size());
                         }
 						$$.varName = new string(returnedValue);
+						delete $3.types;
 
                     }|
                     ID LPAREN RPAREN {
@@ -415,16 +436,31 @@ Call:               ID LPAREN ExpList RPAREN {
 ExpList:            Exp {
                         $$.types = new vector<string>();
                         $$.types->push_back(*($1.type));
-                        delete $1.type;
                         $$.varNames = new vector<string>();
-                        $$.varNames->push_back(*($1.varName));
+						string expVarName;
+						if (*($1.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($1.trueList, $1.falseList);
+						}
+						else {
+							expVarName = *($1.varName);
+						}
+                        $$.varNames->push_back(expVarName);
+						
+						delete $1.type;
                     }|
                     Exp COMMA ExpList {
                         $3.types->insert($3.types->begin(), *($1.type));
                         $$.types = $3.types;
-                        delete $1.type;
-                        $3.varNames->insert($3.varNames->begin(), *($1.varName));
-                        $$.varNames = $3.varNames;
+                        string expVarName;
+						if (*($1.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($1.trueList, $1.falseList);
+						}
+						else {
+							expVarName = *($1.varName);
+						}
+						$$.varNames = $3.varNames;
+                        $3.varNames->insert($3.varNames->begin(), expVarName);
+						delete $1.type;
                     };
 Type:               INT {$$.type = new string("INT");}|
                     BYTE {$$.type = new string("BYTE");}|
@@ -484,6 +520,12 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
 						string id($1);
                         $$.type = new string(GetExpressionTypeById(id));
                         $$.varName = new string(HandleExpId(id));
+						if (*($$.type) == "BOOL"){
+							vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+							HandleBoolVarAsExp(*($$.varName), trueList, falseList);
+							$$.falseList = falseList;
+							$$.trueList = trueList;
+						}
                     }|
                     Call {
                         $$.type = $1.type;
@@ -492,13 +534,13 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     NUM {
                         string val($1);
                         $$.type = new string("INT");
-                        $$.varName = CreateInitialIntegerVar(val);
+                        $$.varName = new string(CreateInitialIntegerVar(val));
                     }|
                     NUM B {
                         string val($1);
-                        CheckNumValidity(val);
+                        CheckNumValidity(stoi(val));
                         $$.type = new string("BYTE");
-                        $$.varName = CreateInitialByteVar(val);
+                        $$.varName = new string(CreateInitialByteVar(val));
 
                     }|
                     STRING {
@@ -527,8 +569,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($4.type));
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
-                        HandleAnd(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, $3.labelToJump)
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+                        HandleAnd(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, *($3.labelToJump));
                         $$.trueList = trueList;
                         $$.falseList = falseList;
                         $$.type = $1.type;
@@ -538,8 +580,8 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         vector<string> expected(1, "BOOL");
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($4.type));
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
-                        HandleOr(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, $3.labelToJump)
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+                        HandleOr(trueList, falseList, $1.trueList, $1.falseList, $4.trueList, $4.falseList, *($3.labelToJump));
                         $$.trueList = trueList;
                         $$.falseList = falseList;
                         $$.type = $1.type;
@@ -552,14 +594,14 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string("BOOL");
-                        string varName1 = $1.varName;
-                        string varName2 = $3.varName;
+                        string varName1 = *($1.varName);
+                        string varName2 = *($3.varName);
                         string commonType = DetermineBinopReturnType(*($1.type), *($3.type));
                         if(commonType == "INT"){
-                            varName1 = ConvertIfByte($1.type, $1.varName);
-                            varName2 = ConvertIfByte($3.type, $3.varName);
+                            varName1 = ConvertIfByte(*($1.type), *($1.varName));
+                            varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
                         CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
                         $$.trueList = trueList;
                         $$.falseList = falseList;
@@ -573,14 +615,14 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($1.type));
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string("BOOL");
-                        string varName1 = $1.varName;
-                        string varName2 = $3.varName;
+                        string varName1 = *($1.varName);
+                        string varName2 = *($3.varName);
                         string commonType = DetermineBinopReturnType(*($1.type), *($3.type));
                         if(commonType == "INT"){
-                            varName1 = ConvertIfByte($1.type, $1.varName);
-                            varName2 = ConvertIfByte($3.type, $3.varName);
+                            varName1 = ConvertIfByte(*($1.type), *($1.varName));
+                            varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        vector<pair<int, BranchLabelIndex>>() *trueList, *falseList;
+                        vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
                         CompareAction(varName1, varName2, string($2), commonType, trueList, falseList);
                         $$.trueList = trueList;
                         $$.falseList = falseList;
@@ -607,8 +649,9 @@ int main(){
     DeclarePrint();
     yyparse();
 	CheckMainExists();
-	// TODO emit "call main"
+	CallMainFunc();
 	//closing global scope
     CloseCurrentScope();
+	PrintLLVMCode();
 	return 0;
 }
