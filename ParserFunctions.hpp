@@ -122,7 +122,7 @@ string CloseFuncDefinition(string funcRetType);
 
 void CreateNewVarDefaultValue();
 
-void CreateNewVarGivenValue(string type, string toStore);
+void CreateNewVarGivenValue(string type, string toStore, string toStoreType);
 
 void UpdateVar(string type, string toStore, string varId);
 
