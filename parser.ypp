@@ -347,7 +347,10 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 							mergedList = MergePatchLists(*($2.nextList), mergedList);
                         }
 						$$.nextList = new vector<pair<int, BranchLabelIndex>>(mergedList);
-                        $$.isBreakList = false;
+                        $$.isBreakList = $2.isBreakList;
+						if ($2.isBreakList){
+							$$.breakList = $2.breakList;
+						}
                     }|
                     IfHeader Statement ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
                         CloseCurrentScope();
@@ -361,7 +364,16 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                             mergedList = MergePatchLists(*($5.nextList), mergedList);
                         }
                         $$.nextList = new vector<pair<int, BranchLabelIndex>>(mergedList);
-                        $$.isBreakList = false;
+						
+						vector<pair<int, BranchLabelIndex>> breakMergedList;
+						$$.isBreakList = $2.isBreakList || $5.isBreakList;
+						if($2.isBreakList){
+							breakMergedList = MergePatchLists(*($2.breakList), breakMergedList);
+						}
+						if($5.isBreakList){
+							breakMergedList = MergePatchLists(*($5.breakList), breakMergedList);
+						}
+                        $$.breakList = new vector<pair<int, BranchLabelIndex>>(breakMergedList);
                     }|
                     WhileHeader Statement {
                         LeaveLoop();
