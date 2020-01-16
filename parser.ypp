@@ -336,7 +336,14 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						CheckFuncRetValNotVoid();
                         $$.isNextList = false;
                         $$.isBreakList = false;
-                        emitReturn(*($2.type), *($2.varName));
+						string expVarName;
+						if (*($2.type) == "BOOL"){
+							expVarName = SaveBoolExpInReg($2.trueList, $2.falseList);
+						}
+						else {
+							expVarName = *($2.varName);
+						}
+                        emitReturn(*($2.type), expVarName);
 						delete $2.type;
                     }|
                     IfHeader Statement %prec IFWITHOUTELSE{
