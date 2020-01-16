@@ -569,9 +569,12 @@ string HandleExpId(string id){
         action = existingVarReg + " = load i32, i32* " + loadFrom;
         CodeBuffer::instance().emit(action);
         string llvmType = ConvertToLLVMType(recordType);
-        string existingVarConvertedReg = FreshVar();
-        action = existingVarConvertedReg + " = trunc i32 " + existingVarReg + " to " + llvmType;
-        CodeBuffer::instance().emit(action);
+        string existingVarConvertedReg = existingVarReg;
+        if(llvmType != "i32"){
+            existingVarConvertedReg = FreshVar();
+            action = existingVarConvertedReg + " = trunc i32 " + existingVarReg + " to " + llvmType;
+            CodeBuffer::instance().emit(action);
+        }
 
         return existingVarConvertedReg;
     }
