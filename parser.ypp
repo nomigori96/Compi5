@@ -30,6 +30,7 @@ void yyerror(const char*);
     enumeratorList_t enumeratorList;
 	enumerator_t enumerator;
     funcIdDecl_t funcIdDecl;
+	funcDeclHeader_t funcDeclHeader;
     enumIdDecl_t enumIdDecl;
     markerM_t markerM;
     statement_t statement;
@@ -93,7 +94,7 @@ void yyerror(const char*);
 %type <type> Type
 %type <enumType> EnumType
 %type <exp> Exp
-%type <dummy> FuncDeclHeader
+%type <funcDeclHeader> FuncDeclHeader
 %type <dummy> OpenScope
 %type <closeScopeAndOpen> CloseScopeAndOpen
 %type <ifHeader> IfHeader
@@ -108,7 +109,7 @@ Program:            Enums Funcs {};
 Funcs:              {}|
                     FuncDecl Funcs ;
 FuncDecl:           FuncDeclHeader Statements RBRACE {
-						string endOfFuncLabel = CloseFuncDefinition();
+						string endOfFuncLabel = CloseFuncDefinition(*($1.retType));
 						if ($2.isNextList){
 							BPatchList(endOfFuncLabel, $2.nextList);
 						}
@@ -131,6 +132,7 @@ FuncDeclHeader:     FuncIdDecl LPAREN Formals RPAREN LBRACE {
                         AddFuncArgsToSymbolTable(*($3.args));
                         DefineFunc(*($1.funcId), *($1.retType), $3.args);
                         AllocateLocalVars();
+						$$.retType = $1.retType;
 						delete $3.args;
                         delete $1.funcId;
                     };
@@ -332,10 +334,10 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     RETURN Exp SC {
                         CheckReturnValid(*($2.type));
 						CheckFuncRetValNotVoid();
-                        delete $2.type;
                         $$.isNextList = false;
                         $$.isBreakList = false;
                         emitReturn(*($2.type), *($2.varName));
+						delete $2.type;
                     }|
                     IfHeader Statement %prec IFWITHOUTELSE{
                         CloseCurrentScope();

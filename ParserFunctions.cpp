@@ -624,10 +624,18 @@ void AllocateLocalVars(){
     CodeBuffer::instance().emit(action);
 }
 
-string CloseFuncDefinition(){
+string CloseFuncDefinition(string funcRetType){
     string endFuncLabel = GenLabel();
-    string action = "ret void";
-    CodeBuffer::instance().emit(action);
+    string action;
+    if (funcRetType == "VOID"){
+        action = "ret void";
+        CodeBuffer::instance().emit(action);
+    }
+    else {
+        string llvmRetType = ConvertToLLVMType(funcRetType);
+        action = "ret " + llvmRetType + " 0";
+        CodeBuffer::instance().emit(action);
+    }
     action = "}";
     CodeBuffer::instance().emit(action);
     return endFuncLabel;

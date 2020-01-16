@@ -118,7 +118,7 @@ void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string
 
 void AllocateLocalVars();
 
-string CloseFuncDefinition();
+string CloseFuncDefinition(string funcRetType);
 
 void CreateNewVarDefaultValue();
 
