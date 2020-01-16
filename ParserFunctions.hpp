@@ -144,7 +144,7 @@ string CallFunctionNoArgs(string funcName);
 
 void CallPrintFunction(string toPrintPtr);
 
-void CallPrintiFunction(string toPrintPtr);
+void CallPrintiFunction(string toPrintPtr, string argType);
 
 void emitReturn(string retType, string varToReturn);
 

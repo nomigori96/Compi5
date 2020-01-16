@@ -757,8 +757,13 @@ void CallPrintFunction(string toPrintPtr){
     CodeBuffer::instance().emit(action);
 }
 
-void CallPrintiFunction(string toPrintPtr){
-    string action = "call void @printi(i32 " + toPrintPtr + ")";
+void CallPrintiFunction(string toPrintPtr, string argType){
+    string convertedReg = toPrintPtr;
+    if (argType == "BYTE"){
+        convertedReg = FreshVar();
+        string convertAction = convertedReg + " = zext i8 " + toPrintPtr + " to i32";
+    }
+    string action = "call void @printi(i32 " + convertedReg + ")";
     CodeBuffer::instance().emit(action);
 }
 

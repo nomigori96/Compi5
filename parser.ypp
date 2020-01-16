@@ -421,7 +421,7 @@ Call:               ID LPAREN ExpList RPAREN {
                             CallPrintFunction($3.varNames->front());
                         }
                         else if (id == "printi"){
-                            CallPrintiFunction($3.varNames->front());
+                            CallPrintiFunction($3.varNames->front(), $3.types->front());
                         }
                         else {
                             string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames), *($3.types));
