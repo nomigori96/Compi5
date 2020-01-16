@@ -591,7 +591,7 @@ string ConvertToLLVMType(string type){
     if (type == "BOOL"){
         return "i1";
     }
-    else if (type == "INT"){
+    else if (type == "INT" || type.find("enum") == 0){
         return "i32";
     }
     else if (type == "VOID"){
@@ -708,14 +708,28 @@ string GetWhileExpLabel(){
     return while_exp_labels_stack.top();
 }
 
-string AllocateFuncArgs(int numArgs, vector<string> args){
+string AllocateFuncArgs(int numArgs, vector<string> args, vector<string> argsTypes){
     string funcArgsVar = FreshVar();
     string action = funcArgsVar + " = alloca [" + to_string(numArgs) + " x i32]";
     CodeBuffer::instance().emit(action);
     for (int i = 0; i < numArgs; i++){
         string currVar = FreshVar();
         string currentVarPtrAction = currVar + " = getelementptr [" + to_string(numArgs) + " x i32]," + "[" + to_string(numArgs) + " x i32]* " + funcArgsVar + ", i32 0, i32 " + to_string(i);
-        string store = "store i32 " + args[i] + ", i32* " + currVar;
+        string currType = argsTypes[i];
+        string updatedToStore = FreshVar();
+        if (currType == "INT" || currType.find("enum") == 0){
+            action = updatedToStore + " = add i32 0, " + args[i];
+            CodeBuffer::instance().emit(action);
+        }
+        else if (currType == "BOOL"){
+            action = updatedToStore + " = zext i1 " + args[i] + " to i32";
+            CodeBuffer::instance().emit(action);
+        }
+        else {
+            action = updatedToStore + " = zext i8 " + args[i] + " to i32";
+            CodeBuffer::instance().emit(action);
+        }
+        string store = "store i32 " + updatedToStore + ", i32* " + currVar;
         CodeBuffer::instance().emit(currentVarPtrAction);
         CodeBuffer::instance().emit(store);
     }
@@ -799,13 +813,16 @@ void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabe
 string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pair<int, BranchLabelIndex>>* falseList){
     string regToSaveIn = FreshVar();
     string trueLabel = GenLabel();
-    string action = regToSaveIn + " = add i1 0, 1";
-    CodeBuffer::instance().emit(action);
+    auto trueBrToPatch = CreatePatchList();
     string falseLabel = GenLabel();
-    action = regToSaveIn + " = add i1 0, 0";
-    CodeBuffer::instance().emit(action);
+    auto falseBrToPatch = CreatePatchList();
+    string phiLabel = CodeBuffer::instance().genLabel();
     CodeBuffer::instance().bpatch(*trueList, trueLabel);
     CodeBuffer::instance().bpatch(*falseList, falseLabel);
+    CodeBuffer::instance().bpatch(trueBrToPatch, phiLabel);
+    CodeBuffer::instance().bpatch(falseBrToPatch, phiLabel);
+    string phiAction = regToSaveIn + " = phi i1 [true, %" + trueLabel + "], [false, %" + falseLabel + "]";
+    CodeBuffer::instance().emit(phiAction);
     return regToSaveIn;
     // TODO - we need to insert a branch after the if body - nextlist and all
     // problematic - thwew are two uses of the same reg name (for both true/false)

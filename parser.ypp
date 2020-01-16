@@ -412,7 +412,6 @@ WhileHeader:        WHILE M LPAREN Exp RPAREN {
 Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
                         $$.type = new string(CheckFunction(id, *($3.types)));
-                        delete $3.types;
                         string returnedValue = "";
                         if (id == "print"){
                             CallPrintFunction($3.varNames->front());
@@ -421,10 +420,11 @@ Call:               ID LPAREN ExpList RPAREN {
                             CallPrintiFunction($3.varNames->front());
                         }
                         else {
-                            string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames));
+                            string allocatedArgs = AllocateFuncArgs(($3.varNames)->size(), *($3.varNames), *($3.types));
                             returnedValue = CallFunction(allocatedArgs, id, ($3.varNames)->size());
                         }
 						$$.varName = new string(returnedValue);
+						delete $3.types;
 
                     }|
                     ID LPAREN RPAREN {

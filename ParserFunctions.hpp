@@ -136,7 +136,7 @@ void ExitLoopPopExpLabel();
 
 string GetWhileExpLabel();
 
-string AllocateFuncArgs(int numArgs, vector<string> args);
+string AllocateFuncArgs(int numArgs, vector<string> args, vector<string> argsTypes);
 
 string CallFunction(string argsAllocationVar, string funcName, int numArgs);
 
