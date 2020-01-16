@@ -15,6 +15,6 @@ if __name__ == "__main__":
         test = os.path.splitext(test)[0]
         print("\t" + str(test))
         subprocess.call("./hw5 < " + os.path.join(path, str(test) + ".in") + " >& " + os.path.join(path, str(test) + ".ll"), shell=True)
-		subprocess.call("lli < " + os.path.join(path, str(test) + ".ll") + " > " + os.path.join(path, str(test) + ".res"), shell=True)
+        subprocess.call("lli < " + os.path.join(path, str(test) + ".ll") + " > " + os.path.join(path, str(test) + ".res"), shell=True)
         subprocess.call("diff " + os.path.join(path, str(test) + ".out") + " " + os.path.join(path, str(test) + ".res"), shell=True)
     print("")
