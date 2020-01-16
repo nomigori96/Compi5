@@ -339,10 +339,12 @@ Statement:          LBRACE OpenScope Statements RBRACE {
                     }|
                     IfHeader Statement %prec IFWITHOUTELSE{
                         CloseCurrentScope();
-                        $$.isNextList = $2.isNextList;
+                        $$.isNextList = true;
+						vector<pair<int, BranchLabelIndex>> mergedList = *($1.falseList);
                         if($2.isNextList){
-                            $$.nextList = $2.nextList;
+							mergedList = MergePatchLists(*($2.nextList), mergedList);
                         }
+						$$.nextList = new vector<pair<int, BranchLabelIndex>>(mergedList);
                         $$.isBreakList = false;
                     }|
                     IfHeader Statement ELSE CloseScopeAndOpen Statement %prec IFWITHELSE{
@@ -545,7 +547,9 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                     }|
                     STRING {
                         $$.type = new string("STRING");
-                        $$.varName = new string(WriteStringToBuffer(string($1)));
+						string wholeStr($1);
+						string wantedStr = wholeStr.substr(1, wholeStr.length() - 2);
+                        $$.varName = new string(WriteStringToBuffer(wantedStr));
 
                     }|
                     TRUE {
@@ -649,7 +653,6 @@ int main(){
     DeclarePrint();
     yyparse();
 	CheckMainExists();
-	CallMainFunc();
 	//closing global scope
     CloseCurrentScope();
 	PrintLLVMCode();

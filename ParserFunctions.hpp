@@ -148,8 +148,6 @@ void CallPrintiFunction(string toPrintPtr);
 
 void emitReturn(string retType, string varToReturn);
 
-void CallMainFunc();
-
 void PrintLLVMCode();
 
 void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList);

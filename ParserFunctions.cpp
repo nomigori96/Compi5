@@ -605,10 +605,15 @@ string ConvertToLLVMType(string type){
 void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string, bool>>* args){
     string llvmRetType = ConvertToLLVMType(funcRetType);
     string funcDecl = "define " + llvmRetType + " @" + funcName + "(";
-    func_args_ptr = FreshVar();
-    curr_func_num_args = to_string(args->size());
-    funcDecl += "[" + curr_func_num_args + " x i32]* " + func_args_ptr;
-    funcDecl += ") {";
+    if (!args->empty()){
+        func_args_ptr = FreshVar();
+        curr_func_num_args = to_string(args->size());
+        funcDecl += "[" + curr_func_num_args + " x i32]* " + func_args_ptr;
+        funcDecl += ") {";
+    }
+    else {
+        funcDecl += ") {";
+    }
     CodeBuffer::instance().emit(funcDecl);
 }
 
@@ -794,11 +799,6 @@ void emitReturn(string retType, string varToReturn){
     CodeBuffer::instance().emit(action);
 }
 
-void CallMainFunc(){
-    string action = "call void @main()";
-    CodeBuffer::instance().emit(action);
-}
-
 void PrintLLVMCode(){
     CodeBuffer::instance().printCodeBuffer();
 }
@@ -824,7 +824,4 @@ string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pa
     string phiAction = regToSaveIn + " = phi i1 [true, %" + trueLabel + "], [false, %" + falseLabel + "]";
     CodeBuffer::instance().emit(phiAction);
     return regToSaveIn;
-    // TODO - we need to insert a branch after the if body - nextlist and all
-    // problematic - thwew are two uses of the same reg name (for both true/false)
-    // is this the place to use phi???
 }
