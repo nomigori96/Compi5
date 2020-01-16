@@ -687,7 +687,7 @@ void UpdateVar(string type, string toStore, string varId, string toStoreType){
     string action;
     string storeTo = FreshVar();
     if (varStackOffset < 0){
-        action = storeTo + " = getelementptr [" + curr_func_num_args + " x i32], [" + curr_func_num_args + " x i32]* " + func_args_ptr + ", i32 0, i32 " + to_string(abs(varStackOffset));
+        action = storeTo + " = getelementptr [" + curr_func_num_args + " x i32], [" + curr_func_num_args + " x i32]* " + func_args_ptr + ", i32 0, i32 " + to_string(abs(varStackOffset) - 1);
     }
     else {
         action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(varStackOffset);
