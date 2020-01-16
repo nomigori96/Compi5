@@ -681,7 +681,7 @@ void CreateNewVarGivenValue(string type, string toStore, string toStoreType){
     local_stack_ptr++;
 }
 
-void UpdateVar(string type, string toStore, string varId){
+void UpdateVar(string type, string toStore, string varId, string toStoreType){
     SymbolTableRecord* varRecord = symbol_table.GetSymbolRecordById(varId);
     int varStackOffset = varRecord->GetOffset();
     string action;
@@ -695,7 +695,13 @@ void UpdateVar(string type, string toStore, string varId){
     CodeBuffer::instance().emit(action);
     string updatedToStore = FreshVar();
     if (type == "INT" || type.find("enum") == 0){
-        action = updatedToStore + " = add i32 0, " + toStore;
+        string convertedToStore = toStore;
+        if (toStoreType == "BYTE"){
+            convertedToStore = FreshVar();
+            string convertAction = convertedToStore + " = zext i8 " + toStore + " to i32";
+            CodeBuffer::instance().emit(convertAction);
+        }
+        action = updatedToStore + " = add i32 0, " + convertedToStore;
         CodeBuffer::instance().emit(action);
     }
     else if (type == "BOOL"){

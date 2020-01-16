@@ -124,7 +124,7 @@ void CreateNewVarDefaultValue();
 
 void CreateNewVarGivenValue(string type, string toStore, string toStoreType);
 
-void UpdateVar(string type, string toStore, string varId);
+void UpdateVar(string type, string toStore, string varId, string toStoreType);
 
 void BPatchList(string labelToPatch, vector<pair<int, BranchLabelIndex >>* someList);
 

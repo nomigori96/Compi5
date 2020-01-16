@@ -288,7 +288,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						else {
 							expVarName = *($4.varName);
 						}
-                        CreateNewVarGivenValue(*($1.type), expVarName);
+                        CreateNewVarGivenValue(*($1.type), expVarName, *($4.type));
                         delete $1.type;
                         delete $4.type;
                         $$.isNextList = false;
@@ -298,7 +298,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						string id($2);
                         CheckIfAssignmentAllowedEnum(*($1.typeName), *($4.type), id);
                         AddVariableSymbolIfNotExists(id, *($1.typeName), false);
-                        CreateNewVarGivenValue(*($1.typeName), *($4.varName));
+                        CreateNewVarGivenValue(*($1.typeName), *($4.varName), *($4.type));
                         delete $1.typeName;
                         delete $4.type;
                         $$.isNextList = false;
@@ -314,7 +314,7 @@ Statement:          LBRACE OpenScope Statements RBRACE {
 						else {
 							expVarName = *($3.varName);
 						}
-                        UpdateVar(*($3.type), expVarName, $1);
+                        UpdateVar(*($3.type), expVarName, $1, *($3.type));
                         delete $3.type;
                         $$.isNextList = false;
                         $$.isBreakList = false;
