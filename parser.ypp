@@ -566,9 +566,15 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
 						}
                     }|
                     Call {
+						$$.evalLabel = new string(GenLabel());
                         $$.type = $1.type;
 						$$.varName = $1.varName;
-						$$.evalLabel = new string(GenLabel());
+						if (*($1.type) == "BOOL"){
+							vector<pair<int, BranchLabelIndex>> *trueList, *falseList;
+							HandleBoolVarAsExp(*($$.varName), trueList, falseList);
+							$$.falseList = falseList;
+							$$.trueList = trueList;
+						}
                     }|
                     NUM {
                         string val($1);
