@@ -96,7 +96,7 @@ string CreateInitialByteVar(string value);
 
 string ConvertIfByte(string type, string arg);
 
-string DoArithmeticAction(string arg1, string arg2, char op, string retType);
+string DoArithmeticAction(string arg1, string arg2, char op, string retType, string arg1Type, string arg2Type);
 
 void CompareAction(string arg1, string arg2, string op, string retType, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList);
 

@@ -530,7 +530,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                             varName1 = ConvertIfByte(*($1.type), *($1.varName));
                             varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, *($$.type)));
+                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, *($$.type), *($1.type), *($3.type)));
                         delete $1.type;
                         delete $3.type;
                     }|
@@ -549,7 +549,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                             varName1 = ConvertIfByte(*($1.type), *($1.varName));
                             varName2 = ConvertIfByte(*($3.type), *($3.varName));
                         }
-                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, *($$.type)));
+                        $$.varName = new string(DoArithmeticAction(varName1, varName2, $2, *($$.type), *($1.type), *($3.type)));
                         delete $1.type;
                         delete $3.type;
                     }|

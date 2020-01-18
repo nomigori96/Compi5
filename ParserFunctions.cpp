@@ -432,17 +432,11 @@ string WriteStringToBuffer(string str){
 }
 
 
-string DoArithmeticAction(string arg1, string arg2, char op, string retType){
+string DoArithmeticAction(string arg1, string arg2, char op, string retType, string arg1Type, string arg2Type){
     string action;
     string varName = FreshVar();
-    action = varName + " = ";
-    string actionType;
-    if(retType == "BYTE"){
-        actionType = "i8";
-    }
-    else {
-        actionType = "i32";
-    }
+	string finalVarName = FreshVar();
+    string actionType = ConvertToLLVMType(retType);
     string divCheck;
     string condVar;
     int condBrToPatch;
@@ -450,15 +444,17 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
     string errorMsg;
     string stringStartPtr;
     string isNotZero;
+	string convertedArg1;
+	string convertedArg2;
     switch(op){
         case '+':
-            action += "add " + actionType + " " + arg1 + " , " + arg2;
+            action = varName + " = add " + actionType + " " + arg1 + " , " + arg2;
             break;
         case '-':
-            action += "sub " + actionType + " " + arg1 + " , " + arg2;
+            action = varName + " = sub " + actionType + " " + arg1 + " , " + arg2;
             break;
         case '*':
-            action += "mul " + actionType + " " + arg1 + " , " + arg2;
+            action = varName + " = mul " + actionType + " " + arg1 + " , " + arg2;
             break;
         case '/':
             condVar = FreshVar();
@@ -476,13 +472,22 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType){
             CodeBuffer::instance().emit(divCheck);
             isNotZero = GenLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair<int, BranchLabelIndex>(condBrToPatch, SECOND)), isNotZero);
-            action += "sdiv " + actionType + " " + arg1 + " , " + arg2;
+			convertedArg1 = ConvertIfByte(arg2Type == "BYTE" ? arg1Type : "INT", arg1);
+			convertedArg2 = ConvertIfByte(arg1Type == "BYTE" ? arg2Type : "INT", arg2);
+            action = varName + " = sdiv i32 " + convertedArg1 + " , " + convertedArg2;
             break;
         default:
             break;
     }
     CodeBuffer::instance().emit(action);
-    return varName;
+	if (retType == "BYTE" && op == '/'){
+		action = finalVarName + " = trunc i32 " + varName + " to i8";
+		CodeBuffer::instance().emit(action);
+	}
+	else {
+		finalVarName = varName;
+	}
+    return finalVarName;
 }
 
 
