@@ -596,8 +596,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
 						string wholeStr($1);
 						string wantedStr = wholeStr.substr(1, wholeStr.length() - 2);
 						$$.evalLabel = new string(GenLabel());
-                        $$.varName = new string(WriteStringToBuffer(wantedStr));
-
+						$$.varName = new string(SaveStringAsGlobalVar(wantedStr));
                     }|
                     TRUE {
                         $$.type = new string("BOOL");
@@ -710,6 +709,7 @@ int main(){
 	CheckMainExists();
 	//closing global scope
     CloseCurrentScope();
+	PrintAllGlobals();
 	PrintLLVMCode();
 	return 0;
 }

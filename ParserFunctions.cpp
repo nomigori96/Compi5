@@ -18,6 +18,7 @@ stack<bool> while_stack;
 stack<string> while_exp_labels_stack;
 
 unsigned long long vars_counter = 0;
+unsigned long long global_vars_counter = 0;
 
 extern int yylineno;
 
@@ -46,29 +47,6 @@ void OpenNewScope()
 
 void CloseCurrentScope()
 {
-    /*
-    endScope();
-    vector<SymbolTableRecord*> currentScope = symbol_table.GetCurrentScope();
-    for (auto &symbol : currentScope){
-        if (symbol->GetType() == "function"){
-            string retType = dynamic_cast<FunctionSymbolTableRecord*>(symbol)->GetFuncReturnType();
-            vector<string> argTypes = MapArgsToTypes(dynamic_cast<FunctionSymbolTableRecord*>(symbol)->GetFuncArgs());
-            string type = makeFunctionType(retType, argTypes);
-            printID(symbol->GetName(), 0, type);
-        } else if (symbol->GetType() == "enum"){
-            //Do nothing
-        }
-        else {
-            printID(symbol->GetName(), symbol->GetOffset(), symbol->GetType());
-        }
-    }
-    for (auto &symbol : currentScope){
-        if (symbol->GetType() == "enum"){
-            vector<string> enumValues = dynamic_cast<EnumSymbolTableRecord*>(symbol)->GetEnumValues();
-            printEnumType(symbol->GetName(), enumValues);
-        }
-    }
-    */
     symbol_table.CloseCurrentScope();
 }
 
@@ -366,7 +344,7 @@ void DeclarePrinti(){
 void DeclarePrint(){
     string print = "define void @print(i8*) {";
     CodeBuffer::instance().emit(print);
-    print = "call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @.str_specifier, i32 0, i32 0), i8* %0)";
+    print = "call i32 (i8*, ...) @printf(i8* %0)";
     CodeBuffer::instance().emit(print);
     print = "ret void";
     CodeBuffer::instance().emit(print);
@@ -378,6 +356,9 @@ string FreshVar(){
     return "%var" + to_string(vars_counter++);
 }
 
+string FreshGlobalVar(){
+    return "@var" + to_string(global_vars_counter++);
+}
 
 string CreateInitialIntegerVar(string value){
     string action;
@@ -404,31 +385,6 @@ string ConvertIfByte(string type, string arg){
         return varName;
     }
     return arg;
-}
-
-string WriteStringToBuffer(string str){
-    int stringLength = str.length();
-    string stringArr = FreshVar();
-    string alloc = stringArr + " = alloca [" + to_string(stringLength + 1) + " x i8]";
-    CodeBuffer::instance().emit(alloc);
-    for (int i = 0; i < stringLength; i++){
-        string currVar = FreshVar();
-        string currentChar = currVar + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 " + to_string(i);
-        int theChar = (int)str[i];
-        string store = "store i8 " + to_string(theChar) + ", i8* " + currVar;
-        CodeBuffer::instance().emit(currentChar);
-        CodeBuffer::instance().emit(store);
-    }
-    string lastVar = FreshVar();
-    string lastChar = lastVar + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 " + to_string(stringLength);
-    int stringEndChar = (int)'\0';
-    string storeLastVar = "store i8 " + to_string(stringEndChar) + ", i8* " + lastVar;
-    CodeBuffer::instance().emit(lastChar);
-    CodeBuffer::instance().emit(storeLastVar);
-    string stringStartPtr = FreshVar();
-    string getStringStartPtr = stringStartPtr + " = getelementptr [" + to_string(stringLength + 1) + " x i8]," + "[" + to_string(stringLength + 1) + " x i8]* " + stringArr + ", i8 0, i8 0";
-    CodeBuffer::instance().emit(getStringStartPtr);
-    return stringStartPtr;
 }
 
 
@@ -465,7 +421,7 @@ string DoArithmeticAction(string arg1, string arg2, char op, string retType, str
             isZero = GenLabel();
             CodeBuffer::instance().bpatch(CodeBuffer::instance().makelist(std::pair<int, BranchLabelIndex>(condBrToPatch, FIRST)), isZero);
             errorMsg = "Error division by zero";
-            stringStartPtr = WriteStringToBuffer(errorMsg);
+            stringStartPtr = SaveStringAsGlobalVar(errorMsg);
             divCheck = "call void @print(i8* " + stringStartPtr + ")";
             CodeBuffer::instance().emit(divCheck);
             divCheck = "call void @exit(i32 0)";
@@ -858,4 +814,19 @@ string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pa
     string phiAction = regToSaveIn + " = phi i1 [true, %" + trueLabel + "], [false, %" + falseLabel + "]";
     CodeBuffer::instance().emit(phiAction);
     return regToSaveIn;
+}
+
+string SaveStringAsGlobalVar(string strToSave){
+	string globalVarName = FreshGlobalVar();
+	int strLen = strToSave.length();
+	string declToEmit = globalVarName + " = constant [" + to_string(strLen + 2) + " x i8] c\""+ strToSave +"\\0A\\00\"";
+	CodeBuffer::instance().emitGlobal(declToEmit);
+	string strAsPtr = FreshVar();
+	string getPtrToStrStartAction = strAsPtr + " = getelementptr [" + to_string(strLen + 2) + " x i8]," + "[" + to_string(strLen + 2) + " x i8]* " + globalVarName + ", i32 0, i32 0";
+	CodeBuffer::instance().emit(getPtrToStrStartAction);
+	return strAsPtr;
+}
+
+void PrintAllGlobals(){
+	CodeBuffer::instance().printGlobalBuffer();
 }

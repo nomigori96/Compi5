@@ -110,8 +110,6 @@ void HandleAnd(vector<pair<int, BranchLabelIndex>>* &resTrueList, vector<pair<in
 
 string HandleExpId(string id);
 
-string WriteStringToBuffer(string str);
-
 string ConvertToLLVMType(string type);
 
 void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string, bool>>* args);
@@ -153,5 +151,11 @@ void PrintLLVMCode();
 void HandleBoolVarAsExp(string regWithBoolValueName, vector<pair<int, BranchLabelIndex>>* &trueList, vector<pair<int, BranchLabelIndex>>* &falseList);
 
 string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pair<int, BranchLabelIndex>>* falseList);
+
+string SaveStringAsGlobalVar(string strToSave);
+
+void PrintAllGlobals();
+
+string FreshGlobalVar();
 
 #endif //HW3_PARSERFUNCTIONNEW_HPP
