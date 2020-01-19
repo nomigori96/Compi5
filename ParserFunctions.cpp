@@ -845,9 +845,9 @@ string HandleStrSpecialChars(string strToSave){
 
 string SaveStringAsGlobalVar(string strToSave){
 	string globalVarName = FreshGlobalVar();
-	string convertedStr = HandleStrSpecialChars(strToSave);
-	int strLen = convertedStr.length();
-	string declToEmit = globalVarName + " = constant [" + to_string(strLen + 2) + " x i8] c\""+ convertedStr +"\\0A\\00\"";
+	//string convertedStr = HandleStrSpecialChars(strToSave);
+	int strLen = strToSave.length();
+	string declToEmit = globalVarName + " = constant [" + to_string(strLen + 2) + " x i8] c\""+ strToSave +"\\0A\\00\"";
 	CodeBuffer::instance().emitGlobal(declToEmit);
 	string strAsPtr = FreshVar();
 	string getPtrToStrStartAction = strAsPtr + " = getelementptr [" + to_string(strLen + 2) + " x i8]," + "[" + to_string(strLen + 2) + " x i8]* " + globalVarName + ", i32 0, i32 0";
