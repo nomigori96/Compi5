@@ -435,6 +435,7 @@ WhileHeader:        WHILE M LPAREN Exp RPAREN {
                     };
 Call:               ID LPAREN ExpList RPAREN {
 						string id($1);
+						$$.evalLabel = new string(GenLabel());
                         $$.type = new string(CheckFunction(id, *($3.types)));
 						
 						string beforeCallLabel = GenLabel();
@@ -451,11 +452,13 @@ Call:               ID LPAREN ExpList RPAREN {
                             returnedValue = CallFunction(allocatedArgs, id, ($3.varNames)->size());
                         }
 						$$.varName = new string(returnedValue);
+						
 						delete $3.types;
 
                     }|
                     ID LPAREN RPAREN {
 						string id($1);
+						$$.evalLabel = new string(GenLabel());
                         $$.type = new string(CheckFunction(id, vector<string>()));
 						string returnedValue = CallFunctionNoArgs(id);
 						$$.varName = new string(returnedValue);
@@ -523,7 +526,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
 						
-						$$.evalLabel = new string(GenLabel());
+						$$.evalLabel = $1.evalLabel;
                         string varName1 = *($1.varName);
                         string varName2 = *($3.varName);
                         if(*($$.type) == "INT"){
@@ -542,7 +545,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
                         CheckTypesMatch(expected, *($3.type));
                         $$.type = new string(DetermineBinopReturnType(*($1.type), *($3.type)));
 						
-						$$.evalLabel = new string(GenLabel());
+						$$.evalLabel = $1.evalLabel;;
                         string varName1 = *($1.varName);
                         string varName2 = *($3.varName);
                         if(*($$.type) == "INT"){
@@ -567,7 +570,7 @@ Exp:                LPAREN Exp RPAREN %prec PARENS {
 						}
                     }|
                     Call {
-						$$.evalLabel = new string(GenLabel());
+						$$.evalLabel = $1.evalLabel;
                         $$.type = $1.type;
 						$$.varName = $1.varName;
 						if (*($1.type) == "BOOL"){

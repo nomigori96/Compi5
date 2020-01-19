@@ -778,13 +778,16 @@ string CallFunctionNoArgs(string funcName){
 }
 
 void emitReturn(string retType, string varToReturn){
-    string llvmRetType = ConvertToLLVMType(retType);
     string action;
-    if (llvmRetType == "void"){
+    if (curr_function_return_type == "VOID"){
         action = "ret void";
     }
     else {
-        action = "ret " + llvmRetType + " " + varToReturn;
+		string convertedVarToReturn = varToReturn;
+		if(curr_function_return_type == "INT"){
+			convertedVarToReturn = ConvertIfByte(retType, varToReturn);
+		}
+        action = "ret " + ConvertToLLVMType(curr_function_return_type) + " " + convertedVarToReturn;
     }
     CodeBuffer::instance().emit(action);
 }
@@ -816,10 +819,35 @@ string SaveBoolExpInReg(vector<pair<int, BranchLabelIndex>>* trueList, vector<pa
     return regToSaveIn;
 }
 
+string HandleStrSpecialChars(string strToSave){
+	string updatedStr;
+	for (auto strIter = strToSave.begin(); strIter != strToSave.end(); ++strIter){
+		if(*strIter == '\\'){
+			strIter++;
+			if(*strIter == 'n'){
+				updatedStr += '\x0A';
+			} else if (*strIter == 'r'){
+				updatedStr += '\x0D';
+			} else if (*strIter == 't'){
+				updatedStr += '\x09';
+			} else if (*strIter == '\"'){
+				updatedStr += '\x22';
+			} else if (*strIter == '\\'){
+				updatedStr += '\x5C';
+			}
+		}
+		else {
+			updatedStr += *strIter;
+		}
+	}
+	return updatedStr;
+}
+
 string SaveStringAsGlobalVar(string strToSave){
 	string globalVarName = FreshGlobalVar();
-	int strLen = strToSave.length();
-	string declToEmit = globalVarName + " = constant [" + to_string(strLen + 2) + " x i8] c\""+ strToSave +"\\0A\\00\"";
+	string convertedStr = HandleStrSpecialChars(strToSave);
+	int strLen = convertedStr.length();
+	string declToEmit = globalVarName + " = constant [" + to_string(strLen + 2) + " x i8] c\""+ convertedStr +"\\0A\\00\"";
 	CodeBuffer::instance().emitGlobal(declToEmit);
 	string strAsPtr = FreshVar();
 	string getPtrToStrStartAction = strAsPtr + " = getelementptr [" + to_string(strLen + 2) + " x i8]," + "[" + to_string(strLen + 2) + " x i8]* " + globalVarName + ", i32 0, i32 0";

@@ -158,4 +158,6 @@ void PrintAllGlobals();
 
 string FreshGlobalVar();
 
+string HandleStrSpecialChars(string strToSave);
+
 #endif //HW3_PARSERFUNCTIONNEW_HPP
