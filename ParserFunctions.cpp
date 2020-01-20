@@ -9,13 +9,14 @@ using namespace std;
 
 SymbolTable symbol_table;
 string curr_function_return_type = "";
-int local_stack_ptr = 0;
+
 string local_vars_ptr = "";
 string func_args_ptr = "";
 string curr_func_num_args = "";
 
 stack<bool> while_stack;
 stack<string> while_exp_labels_stack;
+stack<int> local_stack_ptr;
 
 unsigned long long vars_counter = 0;
 unsigned long long global_vars_counter = 0;
@@ -43,12 +44,16 @@ void CheckMainExists()
 void OpenNewScope()
 {
     symbol_table.OpenScope();
+	if(local_stack_ptr.empty()){
+		local_stack_ptr.push(0);
+	}
+	local_stack_ptr.push(local_stack_ptr.top());
 }
 
 void CloseCurrentScope()
 {
     symbol_table.CloseCurrentScope();
-	local_stack_ptr = 0;
+	local_stack_ptr.pop();
 }
 
 vector<string> MapArgsToTypes(vector<tuple<string, string, bool>> fromRecord){
@@ -583,7 +588,7 @@ void DefineFunc(string funcName, string funcRetType, vector<tuple<string, string
 }
 
 void AllocateLocalVars(){
-    local_stack_ptr = 0;
+    local_stack_ptr.push(0);
     local_vars_ptr = FreshVar();
     string action = local_vars_ptr + " = alloca [50 x i32]";
     CodeBuffer::instance().emit(action);
@@ -608,16 +613,16 @@ string CloseFuncDefinition(string funcRetType){
 
 void CreateNewVarDefaultValue(){
     string storeTo = FreshVar();
-    string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr);
+    string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr.top());
     CodeBuffer::instance().emit(action);
     action = "store i32 0, i32* " + storeTo;
     CodeBuffer::instance().emit(action);
-    local_stack_ptr++;
+    local_stack_ptr.top()++;
 }
 
 void CreateNewVarGivenValue(string type, string toStore, string toStoreType){
     string storeTo = FreshVar();
-    string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr);
+    string action = storeTo + " = getelementptr [50 x i32], [50 x i32]* " + local_vars_ptr + ", i32 0, i32 " + to_string(local_stack_ptr.top());
     CodeBuffer::instance().emit(action);
     string updatedToStore = FreshVar();
     if (type == "INT" || type.find("enum") == 0){
@@ -640,7 +645,7 @@ void CreateNewVarGivenValue(string type, string toStore, string toStoreType){
     }
     action = "store i32 " + updatedToStore + ", i32* " + storeTo;
     CodeBuffer::instance().emit(action);
-    local_stack_ptr++;
+    local_stack_ptr.top()++;
 }
 
 void UpdateVar(string type, string toStore, string varId, string toStoreType){
