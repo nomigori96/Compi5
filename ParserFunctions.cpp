@@ -48,6 +48,7 @@ void OpenNewScope()
 void CloseCurrentScope()
 {
     symbol_table.CloseCurrentScope();
+	local_stack_ptr = 0;
 }
 
 vector<string> MapArgsToTypes(vector<tuple<string, string, bool>> fromRecord){
